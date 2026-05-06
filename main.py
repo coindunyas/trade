@@ -1,57 +1,74 @@
-from dotenv import load_dotenv
+import os
+import requests
 
 from binance_tr import BinanceTRClient
-from config import Settings
 from scoring import score_symbol
-from state import SignalState
 from telegram import TelegramNotifier
 
 
-def active_try_symbols(exchange_info: dict) -> set[str]:
-    symbols: set[str] = set()
-    for item in exchange_info.get("symbols", []):
-        symbol = str(item.get("symbol", ""))
-        status = str(item.get("status", ""))
-        quote_asset = str(item.get("quoteAsset", ""))
-
-        if status == "TRADING" and (quote_asset == "TRY" or symbol.endswith("TRY")):
-            symbols.add(symbol)
-    return symbols
+def get_settings():
+    return {
+        "bot_token": os.getenv("TELEGRAM_BOT_TOKEN"),
+        "chat_id": os.getenv("TELEGRAM_CHAT_ID"),
+    }
 
 
-def run() -> None:
-    load_dotenv()
+def format_message(results):
+    message = "🚀 <b>EN VERİMLİ 3 FIRSAT (AI ANALİZ)</b>\n\n"
+
+    for item in results:
+        message += (
+            f"📊 <b>{item['symbol']}</b> (Skor: {item['score']}/8)\n"
+            f"💰 Fiyat: {item['current_price']}\n"
+            f"📉 Değişim: %{item['change_percent']}\n"
+            f"🎯 Hedef: {item['target_price']}\n"
+            f"🛑 Stop: {item['stop_price']}\n"
+            f"⚠️ Risk: {item['risk']}\n\n"
+        )
+
+    return message
+
+
+def run():
     settings = get_settings()
 
-    client = BinanceTRClient(settings.binance_base_url)
-    state = SignalState(settings.state_file, settings.signal_cooldown_hours)
+    notifier = TelegramNotifier(
+        settings["bot_token"],
+        settings["chat_id"]
+    )
 
-    symbols = active_try_symbols(client.exchange_info())
-    tickers = [t for t in client.ticker_24hr() if t.get("symbol") in symbols]
+    client = BinanceTRClient()
 
-    signals = []
+    tickers = client.get_tickers()
+
+    scored = []
+
     for ticker in tickers:
-        signal = score_ticker(
-            ticker,
-            min_volume_try=settings.min_volume_try,
-            high_volume_try=settings.high_volume_try,
-            target_profit_pct=settings.target_profit_pct,
-            stop_loss_pct=settings.stop_loss_pct,
-        )
-        if signal and state.can_send(signal.symbol):
-            signals.append(signal)
+        try:
+            symbol = ticker.get("symbol", "")
 
-    signals.sort(key=lambda s: (s.score, s.quote_volume_try), reverse=True)
-    top_signals = signals[: settings.max_results]
+            if not symbol.endswith("TRY"):
+                continue
 
-    message = build_message(top_signals)
-    send_telegram_message(settings.telegram_bot_token, settings.telegram_chat_id, message)
+            result = score_symbol(ticker)
 
-    for signal in top_signals:
-        state.mark_sent(signal.symbol)
-    state.save()
+            if result and result["score"] >= 5:
+                scored.append(result)
 
-    print(f"Taranan TRY parite: {len(tickers)} | Gonderilen sinyal: {len(top_signals)}")
+        except Exception as e:
+            print(f"Hata: {e}")
+
+    scored = sorted(scored, key=lambda x: x["score"], reverse=True)
+
+    top3 = scored[:3]
+
+    if not top3:
+        notifier.send_message("⚠️ Uygun sinyal bulunamadı.")
+        return
+
+    message = format_message(top3)
+
+    notifier.send_message(message)
 
 
 if __name__ == "__main__":
