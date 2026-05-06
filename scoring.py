@@ -1,109 +1,58 @@
-from dataclasses import dataclass
+from typing import Dict
 
 
-@dataclass(frozen=True)
-class Signal:
-    symbol: str
-    price: float
-    price_change_pct: float
-    quote_volume_try: float
-    low_24h: float
-    high_24h: float
-    score: int
-    target_price: float
-    stop_loss_price: float
-    risk_level: str
-    reasons: list[str]
-
-
-def safe_float(value: object, default: float = 0.0) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def score_ticker(
-    ticker: dict,
-    *,
-    min_volume_try: float,
-    high_volume_try: float,
-    target_profit_pct: float,
-    stop_loss_pct: float,
-) -> Signal | None:
-    symbol = str(ticker.get("symbol", ""))
-    price = safe_float(ticker.get("lastPrice"))
-    change_pct = safe_float(ticker.get("priceChangePercent"))
-    quote_volume = safe_float(ticker.get("quoteVolume"))
-    low = safe_float(ticker.get("lowPrice"))
-    high = safe_float(ticker.get("highPrice"))
-    open_price = safe_float(ticker.get("openPrice"))
-
-    if price <= 0 or low <= 0 or high <= 0:
-        return None
-
-    if quote_volume < min_volume_try:
-        return None
-
+def score_symbol(symbol_data: Dict):
     score = 0
-    reasons: list[str] = []
+    reasons = []
 
-    # 1) Fiyat analizi: 24 saatte %7+ dusus = dip firsati
-    if change_pct <= -7:
-        score += 3
-        reasons.append("24s dusus %7 uzeri: dip firsati")
-    elif change_pct <= -4:
-        score += 2
-        reasons.append("24s anlamli geri cekilme")
-    elif change_pct <= -2:
-        score += 1
-        reasons.append("hafif geri cekilme")
+    try:
+        price_change = float(symbol_data.get("priceChangePercent", 0))
+        volume = float(symbol_data.get("quoteVolume", 0))
+        low_price = float(symbol_data.get("lowPrice", 0))
+        last_price = float(symbol_data.get("lastPrice", 0))
 
-    # 2) Hacim analizi: yuksek hacim + pozitif ivme
-    positive_momentum = price > open_price if open_price > 0 else change_pct > 0
-    if quote_volume >= high_volume_try and positive_momentum:
-        score += 3
-        reasons.append("20M TL+ hacim ve pozitif ivme: para girisi")
-    elif quote_volume >= high_volume_try:
-        score += 2
-        reasons.append("20M TL+ hacim")
-    elif quote_volume >= min_volume_try * 2:
-        score += 1
-        reasons.append("likidite yeterli")
+        # 1. Dip fırsatı
+        if price_change <= -7:
+            score += 3
+            reasons.append("Dip fırsatı")
 
-    # 3) Dibe yakinlik: mevcut fiyat son 24s low seviyesine ne kadar yakin?
-    daily_range = high - low
-    low_distance_pct = ((price - low) / price) * 100 if price else 999
+        # 2. Güçlü hacim
+        if volume >= 20000000:
+            score += 3
+            reasons.append("Yüksek hacim")
 
-    if daily_range > 0:
-        range_position = (price - low) / daily_range
-        if range_position <= 0.20:
-            score += 2
-            reasons.append("24s dibine cok yakin")
-        elif range_position <= 0.35:
-            score += 1
-            reasons.append("24s dibine yakin")
-    elif low_distance_pct <= 2:
-        score += 1
-        reasons.append("low seviyesine yakin")
+        # 3. Dibe yakınlık
+        if low_price > 0:
+            proximity = (last_price - low_price) / low_price
 
-    score = min(score, 8)
+            if proximity <= 0.05:
+                score += 2
+                reasons.append("Dibe yakın")
 
-    if score < 5:
+        # Risk seviyesi
+        if score >= 7:
+            risk = "Düşük Risk"
+        elif score >= 5:
+            risk = "Orta Risk"
+        else:
+            risk = "Yüksek Risk"
+
+        # Hedef ve stop
+        target_price = round(last_price * 1.18, 4)
+        stop_price = round(last_price * 0.95, 4)
+
+        return {
+            "symbol": symbol_data.get("symbol"),
+            "score": score,
+            "reasons": reasons,
+            "risk": risk,
+            "current_price": last_price,
+            "change_percent": price_change,
+            "target_price": target_price,
+            "stop_price": stop_price,
+            "volume": volume,
+        }
+
+    except Exception as e:
+        print(f"Scoring error: {e}")
         return None
-
-    risk_level = "Dusuk Risk" if score >= 7 else "Orta Risk" if score == 6 else "Yuksek Risk"
-
-    return Signal(
-        symbol=symbol,
-        price=price,
-        price_change_pct=change_pct,
-        quote_volume_try=quote_volume,
-        low_24h=low,
-        high_24h=high,
-        score=score,
-        target_price=price * (1 + target_profit_pct / 100),
-        stop_loss_price=price * (1 - stop_loss_pct / 100),
-        risk_level=risk_level,
-        reasons=reasons,
-    )
