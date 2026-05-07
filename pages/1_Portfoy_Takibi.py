@@ -55,6 +55,16 @@ def init_db():
     """)
 
     cur.execute("""
+    CREATE TABLE IF NOT EXISTS cash_movements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT,
+        movement_type TEXT,
+        amount REAL,
+        note TEXT
+    )
+    """)
+
+    cur.execute("""
     INSERT OR IGNORE INTO settings (key, value)
     VALUES ('initial_capital', 0)
     """)
@@ -139,6 +149,19 @@ def save_manual_price(symbol, price):
     conn.close()
 
 
+def delete_manual_price(symbol):
+    conn = connect_db()
+    cur = conn.cursor()
+
+    cur.execute(
+        "DELETE FROM manual_prices WHERE symbol=?",
+        (symbol.upper().strip(),)
+    )
+
+    conn.commit()
+    conn.close()
+
+
 def load_manual_prices():
     conn = connect_db()
     df = pd.read_sql_query("SELECT * FROM manual_prices", conn)
@@ -156,6 +179,65 @@ def load_manual_prices():
             prices[symbol.replace("TRY", "")] = price
 
     return prices, df
+
+
+def add_cash_movement(movement_type, amount, note):
+    conn = connect_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+    INSERT INTO cash_movements (created_at, movement_type, amount, note)
+    VALUES (?, ?, ?, ?)
+    """, (
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        movement_type,
+        float(amount),
+        note,
+    ))
+
+    conn.commit()
+    conn.close()
+
+
+def delete_cash_movement(movement_id):
+    conn = connect_db()
+    cur = conn.cursor()
+
+    cur.execute(
+        "DELETE FROM cash_movements WHERE id=?",
+        (movement_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def load_cash_movements():
+    conn = connect_db()
+    df = pd.read_sql_query(
+        "SELECT * FROM cash_movements ORDER BY id DESC",
+        conn
+    )
+    conn.close()
+    return df
+
+
+def calculate_extra_cash(cash_df):
+    if cash_df.empty:
+        return 0.0
+
+    total = 0.0
+
+    for _, row in cash_df.iterrows():
+        amount = float(row["amount"])
+
+        if row["movement_type"] == "NAKİT EKLE":
+            total += amount
+
+        elif row["movement_type"] == "NAKİT ÇIKAR":
+            total -= amount
+
+    return total
 
 
 @st.cache_data(ttl=300)
@@ -301,13 +383,22 @@ if not live_prices:
     st.warning("Canlı fiyatlar geçici olarak alınamadı. Manuel fiyatlar varsa onlar kullanılacak.")
 
 trades_df = load_trades()
+cash_movements_df = load_cash_movements()
+
 initial_capital = get_initial_capital()
+extra_cash = calculate_extra_cash(cash_movements_df)
 
 portfolio_df, summary = calculate_portfolio(trades_df, prices)
 
-cash_balance = initial_capital - summary["used_try"] + summary["cash_from_sales"]
+cash_balance = (
+    initial_capital
+    + extra_cash
+    - summary["used_try"]
+    + summary["cash_from_sales"]
+)
+
 total_assets = cash_balance + summary["current_value"]
-total_profit = total_assets - initial_capital
+total_profit = total_assets - initial_capital - extra_cash
 
 
 st.subheader("💰 Genel Durum")
@@ -315,15 +406,21 @@ st.subheader("💰 Genel Durum")
 c1, c2, c3, c4 = st.columns(4)
 
 c1.metric("Başlangıç Sermayesi", format_money(initial_capital))
-c2.metric("TRY Kasa", format_money(cash_balance))
-c3.metric("Açık Pozisyon Değeri", format_money(summary["current_value"]))
-c4.metric("Toplam Varlık", format_money(total_assets))
+c2.metric("Ek Nakit", format_money(extra_cash))
+c3.metric("Toplam Alış", format_money(summary["used_try"]))
+c4.metric("Toplam Satış", format_money(summary["cash_from_sales"]))
 
-c5, c6, c7 = st.columns(3)
+c5, c6, c7, c8 = st.columns(4)
 
-c5.metric("Gerçekleşen Kar/Zarar", format_money(summary["realized_pnl"]))
-c6.metric("Açık Kar/Zarar", format_money(summary["unrealized_pnl"]))
-c7.metric("Toplam Kar/Zarar", format_money(total_profit))
+c5.metric("TRY Kasa", format_money(cash_balance))
+c6.metric("Açık Pozisyon Değeri", format_money(summary["current_value"]))
+c7.metric("Toplam Varlık", format_money(total_assets))
+c8.metric("Toplam Kar/Zarar", format_money(total_profit))
+
+c9, c10 = st.columns(2)
+
+c9.metric("Gerçekleşen Kar/Zarar", format_money(summary["realized_pnl"]))
+c10.metric("Açık Kar/Zarar", format_money(summary["unrealized_pnl"]))
 
 st.divider()
 
@@ -349,9 +446,67 @@ with st.form("capital_form"):
 st.divider()
 
 
-st.subheader("🟡 Manuel Anlık Fiyat Ekle")
+st.subheader("💵 Ek Nakit Girişi / Çıkışı")
 
-st.caption("FOGO gibi CoinGecko’da çıkmayan coinler için buraya manuel fiyat gir.")
+st.caption("Sermaye dışında elde olan nakitleri buradan ekleyebilirsin. Örn: önceki kâr, dışarıdan eklenen para, kasadan çekilen para.")
+
+with st.form("cash_form"):
+    n1, n2, n3 = st.columns(3)
+
+    with n1:
+        cash_type = st.selectbox(
+            "İşlem tipi",
+            ["NAKİT EKLE", "NAKİT ÇIKAR"]
+        )
+
+    with n2:
+        cash_amount = st.number_input(
+            "Tutar",
+            min_value=0.0,
+            step=100.0
+        )
+
+    with n3:
+        cash_note = st.text_input(
+            "Not",
+            placeholder="Örn: Önceki kâr, dışarıdan para, çekim"
+        )
+
+    save_cash = st.form_submit_button("Nakit İşlemini Kaydet")
+
+    if save_cash:
+        if cash_amount <= 0:
+            st.error("Tutar sıfırdan büyük olmalı.")
+        else:
+            add_cash_movement(cash_type, cash_amount, cash_note)
+            st.success("Nakit işlemi kaydedildi.")
+            st.rerun()
+
+if not cash_movements_df.empty:
+    st.write("### 💵 Nakit Hareketleri")
+    st.dataframe(cash_movements_df, use_container_width=True)
+
+    cash_delete_id = st.number_input(
+        "Silinecek nakit hareketi ID",
+        min_value=0,
+        step=1
+    )
+
+    if st.button("Nakit Hareketini Sil"):
+        if cash_delete_id > 0:
+            delete_cash_movement(cash_delete_id)
+            st.success("Nakit hareketi silindi.")
+            st.rerun()
+        else:
+            st.error("Geçerli ID gir.")
+
+
+st.divider()
+
+
+st.subheader("🟡 Manuel Anlık Fiyat Ekle / Sil")
+
+st.caption("FOGO gibi CoinGecko’da çıkmayan coinler için manuel fiyat girebilirsin.")
 
 with st.form("manual_price_form"):
     p1, p2 = st.columns(2)
@@ -381,7 +536,22 @@ with st.form("manual_price_form"):
             st.rerun()
 
 if not manual_prices_df.empty:
+    st.write("### 🟡 Kayıtlı Manuel Fiyatlar")
     st.dataframe(manual_prices_df, use_container_width=True)
+
+    delete_symbol = st.text_input(
+        "Silinecek manuel fiyat sembolü",
+        placeholder="FOGOTRY"
+    )
+
+    if st.button("Manuel Fiyatı Sil"):
+        if delete_symbol:
+            delete_manual_price(delete_symbol)
+            st.success("Manuel fiyat silindi.")
+            st.cache_data.clear()
+            st.rerun()
+        else:
+            st.error("Silmek için sembol gir.")
 
 
 st.divider()
