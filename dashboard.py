@@ -16,8 +16,14 @@ st.set_page_config(
 st.markdown("""
 <style>
 .stApp {
-    background: radial-gradient(circle at top left, #111827 0%, #020617 42%, #030712 100%);
+    background: radial-gradient(circle at top left, #0b1220 0%, #020617 45%, #030712 100%);
     color: #f8fafc;
+}
+
+.block-container {
+    padding-top: 1.2rem;
+    padding-left: 1.4rem;
+    padding-right: 1.4rem;
 }
 
 section[data-testid="stSidebar"] {
@@ -29,101 +35,237 @@ section[data-testid="stSidebar"] * {
     color: #e5e7eb !important;
 }
 
-.block-container {
-    padding-top: 1.5rem;
-    padding-bottom: 2rem;
+h1, h2, h3, p, span, label, div {
+    color: #f8fafc;
 }
 
-h1, h2, h3 {
-    color: #f8fafc !important;
-    font-weight: 800 !important;
+.hero-title {
+    font-size: 48px;
+    font-weight: 950;
+    line-height: 1.05;
+    margin-bottom: 8px;
 }
 
-p, span, label, div {
+.hero-subtitle {
+    font-size: 22px;
+    font-weight: 800;
     color: #e5e7eb;
 }
 
-[data-testid="stMetric"] {
-    background: linear-gradient(145deg, rgba(15,23,42,.95), rgba(30,41,59,.72));
+.hero-caption {
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.status-box {
+    background: rgba(15,23,42,.88);
     border: 1px solid rgba(148,163,184,.22);
-    border-radius: 22px;
-    padding: 24px;
-    box-shadow: 0 18px 50px rgba(0,0,0,.35);
-}
-
-[data-testid="stMetricLabel"] {
-    color: #cbd5e1 !important;
-    font-size: 15px !important;
-    font-weight: 700 !important;
-}
-
-[data-testid="stMetricValue"] {
-    color: #ffffff !important;
-    font-size: 42px !important;
-    font-weight: 900 !important;
-}
-
-.premium-card {
-    background: linear-gradient(145deg, rgba(15,23,42,.92), rgba(2,6,23,.9));
-    border: 1px solid rgba(148,163,184,.22);
-    border-radius: 22px;
-    padding: 22px;
-    box-shadow: 0 18px 50px rgba(0,0,0,.36);
-}
-
-.status-card {
-    background: rgba(15,23,42,.82);
-    border: 1px solid rgba(148,163,184,.22);
-    border-radius: 18px;
+    border-radius: 16px;
     padding: 18px 22px;
+    box-shadow: 0 14px 40px rgba(0,0,0,.35);
 }
 
-.green { color: #22c55e !important; font-weight: 800; }
-.red { color: #ef4444 !important; font-weight: 800; }
-.yellow { color: #facc15 !important; font-weight: 800; }
-.blue { color: #38bdf8 !important; font-weight: 800; }
-.purple { color: #a855f7 !important; font-weight: 800; }
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-top: 24px;
+    margin-bottom: 28px;
+}
 
-.badge-green {
-    background: rgba(34,197,94,.16);
-    color: #86efac;
+.kpi-card {
+    position: relative;
+    min-height: 145px;
+    border-radius: 20px;
+    padding: 24px;
+    overflow: hidden;
+    background: linear-gradient(145deg, rgba(15,23,42,.96), rgba(2,6,23,.92));
+    border: 1px solid rgba(148,163,184,.23);
+    box-shadow: 0 18px 55px rgba(0,0,0,.36);
+}
+
+.kpi-card.purple { border-color: rgba(168,85,247,.45); box-shadow: 0 0 28px rgba(168,85,247,.12); }
+.kpi-card.green { border-color: rgba(34,197,94,.42); box-shadow: 0 0 28px rgba(34,197,94,.10); }
+.kpi-card.yellow { border-color: rgba(250,204,21,.42); box-shadow: 0 0 28px rgba(250,204,21,.10); }
+.kpi-card.blue { border-color: rgba(56,189,248,.42); box-shadow: 0 0 28px rgba(56,189,248,.10); }
+
+.kpi-icon {
+    float: left;
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    margin-right: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+}
+
+.icon-purple { background: rgba(168,85,247,.18); color: #c084fc; border: 1px solid rgba(168,85,247,.45); }
+.icon-green { background: rgba(34,197,94,.18); color: #86efac; border: 1px solid rgba(34,197,94,.45); }
+.icon-yellow { background: rgba(250,204,21,.18); color: #fde047; border: 1px solid rgba(250,204,21,.45); }
+.icon-blue { background: rgba(56,189,248,.18); color: #7dd3fc; border: 1px solid rgba(56,189,248,.45); }
+
+.kpi-label {
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: .3px;
+    color: #f8fafc;
+}
+
+.kpi-value {
+    font-size: 44px;
+    font-weight: 950;
+    margin-top: 8px;
+    line-height: 1;
+}
+
+.value-green { color: #4ade80; }
+.value-yellow { color: #facc15; }
+.value-blue { color: #38bdf8; }
+.value-white { color: #ffffff; }
+
+.kpi-small {
+    margin-top: 12px;
+    font-size: 14px;
+    color: #cbd5e1;
+}
+
+.section-title {
+    font-size: 30px;
+    font-weight: 950;
+    margin-top: 20px;
+    margin-bottom: 18px;
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.4fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+div[data-baseweb="select"] > div {
+    background: rgba(15,23,42,.92) !important;
+    border: 1px solid rgba(148,163,184,.28) !important;
+    color: white !important;
+    border-radius: 12px !important;
+}
+
+input {
+    background: rgba(15,23,42,.92) !important;
+    color: white !important;
+    border-radius: 12px !important;
+}
+
+.stSlider label, .stSelectbox label, .stTextInput label {
+    color: white !important;
+    font-weight: 800 !important;
+}
+
+.crypto-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: rgba(15,23,42,.80);
+    border: 1px solid rgba(148,163,184,.25);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 55px rgba(0,0,0,.38);
+    font-size: 14px;
+}
+
+.crypto-table th {
+    background: rgba(15,23,42,.98);
+    color: #f8fafc;
+    padding: 14px 12px;
+    text-align: left;
+    font-weight: 900;
+    border-bottom: 1px solid rgba(148,163,184,.25);
+    border-right: 1px solid rgba(148,163,184,.12);
+}
+
+.crypto-table td {
+    color: #e5e7eb;
+    padding: 12px 12px;
+    border-bottom: 1px solid rgba(148,163,184,.12);
+    border-right: 1px solid rgba(148,163,184,.08);
+    background: rgba(2,6,23,.45);
+}
+
+.crypto-table tr:hover td {
+    background: rgba(30,41,59,.85);
+}
+
+.num {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.badge-low {
+    background: rgba(34,197,94,.18);
+    color: #4ade80;
     border: 1px solid rgba(34,197,94,.35);
-    padding: 5px 10px;
+    padding: 5px 9px;
     border-radius: 999px;
-    font-weight: 800;
+    font-weight: 900;
+    font-size: 12px;
 }
 
-.badge-yellow {
-    background: rgba(250,204,21,.16);
-    color: #fde68a;
+.badge-mid {
+    background: rgba(250,204,21,.18);
+    color: #fde047;
     border: 1px solid rgba(250,204,21,.35);
-    padding: 5px 10px;
+    padding: 5px 9px;
     border-radius: 999px;
-    font-weight: 800;
+    font-weight: 900;
+    font-size: 12px;
 }
 
-.badge-red {
-    background: rgba(239,68,68,.16);
+.badge-high {
+    background: rgba(239,68,68,.18);
     color: #fca5a5;
     border: 1px solid rgba(239,68,68,.35);
-    padding: 5px 10px;
+    padding: 5px 9px;
     border-radius: 999px;
-    font-weight: 800;
+    font-weight: 900;
+    font-size: 12px;
 }
 
-[data-testid="stDataFrame"] {
+.negative { color: #ef4444 !important; font-weight: 900; }
+.positive { color: #22c55e !important; font-weight: 900; }
+.confidence { color: #c084fc !important; font-weight: 900; }
+.trend-down { color: #ef4444 !important; font-weight: 900; }
+.trend-up { color: #22c55e !important; font-weight: 900; }
+
+.bottom-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.info-card {
+    background: rgba(15,23,42,.88);
+    border: 1px solid rgba(148,163,184,.22);
     border-radius: 18px;
-    overflow: hidden;
-    border: 1px solid rgba(148,163,184,.18);
+    padding: 18px;
+    min-height: 110px;
+    box-shadow: 0 14px 40px rgba(0,0,0,.30);
+}
+
+.info-card h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+}
+
+.info-card p {
+    color: #cbd5e1;
+    margin: 0;
 }
 
 hr {
-    border-color: rgba(148,163,184,.18);
-}
-
-.stSlider label {
-    color: #f8fafc !important;
-    font-weight: 700 !important;
+    border-color: rgba(148,163,184,.15);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -133,13 +275,11 @@ hr {
 def load_data():
     client = BinanceTRClient()
     tickers = client.get_tickers()
-
     results = []
     for ticker in tickers:
         result = score_symbol(ticker)
         if result:
             results.append(result)
-
     return results
 
 
@@ -150,7 +290,7 @@ def fmt_price(value):
             return f"{value:,.2f}"
         return f"{value:.6f}"
     except Exception:
-        return value
+        return "-"
 
 
 def fmt_volume(value):
@@ -162,47 +302,119 @@ def fmt_volume(value):
             return f"{value / 1_000_000:.2f}M"
         return f"{value:,.0f}"
     except Exception:
-        return value
+        return "-"
 
 
-def risk_badge(risk):
-    risk_text = str(risk)
-    if "Düşük" in risk_text:
+def entry_zone(current_price):
+    price = float(current_price)
+    low = price * 0.98
+    high = price * 0.99
+    return f"{fmt_price(low)} - {fmt_price(high)}"
+
+
+def trend_text(change):
+    change = float(change)
+    if change > 1:
+        return "Yükseliş"
+    if change < -1:
+        return "Düşüş"
+    return "Yatay"
+
+
+def confidence(score, volume):
+    score_part = float(score) / 8 * 70
+    volume_part = min(float(volume) / 1_000_000_000, 1) * 30
+    return round(score_part + volume_part)
+
+
+def risk_label(risk):
+    risk = str(risk)
+    if "Düşük" in risk:
         return "Düşük-Orta"
-    if "Orta" in risk_text:
+    if "Orta" in risk:
         return "Orta"
     return "Yüksek"
 
 
-def trend_text(change):
+def risk_html(risk):
+    label = risk_label(risk)
+    if label == "Düşük-Orta":
+        return f'<span class="badge-low">{label}</span>'
+    if label == "Orta":
+        return f'<span class="badge-mid">{label}</span>'
+    return f'<span class="badge-high">{label}</span>'
+
+
+def change_html(value):
+    value = float(value)
+    css = "positive" if value >= 0 else "negative"
+    return f'<span class="{css}">{value:.2f}%</span>'
+
+
+def proximity_html(value):
     try:
-        change = float(change)
-        if change > 1:
-            return "Yükseliş"
-        if change < -1:
-            return "Düşüş"
-        return "Yatay"
-    except Exception:
-        return "Yatay"
-
-
-def ai_confidence(score, volume):
-    try:
-        score_part = float(score) / 8 * 70
-        volume_part = min(float(volume) / 1_000_000_000, 1) * 30
-        return round(score_part + volume_part)
-    except Exception:
-        return 0
-
-
-def entry_zone(current_price):
-    try:
-        price = float(current_price)
-        low = price * 0.98
-        high = price * 0.99
-        return f"{fmt_price(low)} - {fmt_price(high)}"
+        value = float(value)
+        css = "positive" if value >= 0 else "negative"
+        return f'<span class="{css}">{value:.2f}%</span>'
     except Exception:
         return "-"
+
+
+def trend_html(value):
+    if value == "Yükseliş":
+        return '<span class="trend-up">↑ Yükseliş</span>'
+    if value == "Düşüş":
+        return '<span class="trend-down">↓ Düşüş</span>'
+    return '<span>→ Yatay</span>'
+
+
+def render_table(df):
+    rows = []
+    for idx, row in df.iterrows():
+        rows.append(f"""
+        <tr>
+            <td class="num">{idx}</td>
+            <td><b>{row["symbol"]}</b></td>
+            <td class="num">{row["score"]}</td>
+            <td>{risk_html(row["risk"])}</td>
+            <td class="num">{fmt_price(row["current_price"])}</td>
+            <td class="num">{entry_zone(row["current_price"])}</td>
+            <td class="num">{fmt_price(row["sell_price_1"])}</td>
+            <td class="num">{fmt_price(row["sell_price_2"])}</td>
+            <td class="num">{fmt_price(row["stop_price"])}</td>
+            <td class="num">{change_html(row["change_percent"])}</td>
+            <td class="num">{fmt_volume(row["volume"])}</td>
+            <td class="num">{proximity_html(row["proximity_to_low"])}</td>
+            <td class="num"><span class="confidence">%{confidence(row["score"], row["volume"])}</span></td>
+            <td>{trend_html(trend_text(row["change_percent"]))}</td>
+        </tr>
+        """)
+
+    return f"""
+    <table class="crypto-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Sembol</th>
+                <th>Skor</th>
+                <th>Risk Seviyesi</th>
+                <th>Güncel Fiyat (TRY)</th>
+                <th>Alış Bölgesi (TRY)</th>
+                <th>Satış 1 (TRY)</th>
+                <th>Satış 2 (TRY)</th>
+                <th>Stop-Loss (TRY)</th>
+                <th>Değişim (%)</th>
+                <th>Hacim (TRY)</th>
+                <th>Dibe Yakınlık (%)</th>
+                <th>AI Güven</th>
+                <th>Trend</th>
+            </tr>
+        </thead>
+        <tbody>
+            {''.join(rows)}
+        </tbody>
+    </table>
+    """
 
 
 st.sidebar.markdown("# 🚀 AI Crypto")
@@ -217,20 +429,11 @@ st.sidebar.markdown("🔥 Heatmap")
 st.sidebar.markdown("🔔 Bildirim Ayarları")
 st.sidebar.markdown("✈️ Telegram")
 st.sidebar.divider()
-st.sidebar.success("🛡️ Sistem Durumu: Aktif")
+st.sidebar.success("🛡️ Tüm Sistemler Aktif")
 
 
 data = load_data()
-
-if not data:
-    st.warning("Veri bulunamadı.")
-    st.stop()
-
 df = pd.DataFrame(data).sort_values(by="score", ascending=False)
-
-df["Alış Bölgesi (TRY)"] = df["current_price"].apply(entry_zone)
-df["AI Güven"] = df.apply(lambda x: f"%{ai_confidence(x['score'], x['volume'])}", axis=1)
-df["Trend"] = df["change_percent"].apply(trend_text)
 
 total = len(df)
 signals = len(df[df["score"] >= 5])
@@ -238,43 +441,58 @@ best = int(df["score"].max())
 avg = round(df["score"].mean(), 2)
 now = datetime.now().strftime("%H:%M:%S")
 
-top_left, top_right = st.columns([2.2, 1])
+left, right = st.columns([2.5, 1])
 
-with top_left:
-    st.markdown("# 🚀 AI Crypto Signal Dashboard")
-    st.markdown("### Premium kripto fırsat tarama paneli")
-    st.caption("CoinGecko TRY verileri ile çalışır. Yatırım tavsiyesi değildir.")
+with left:
+    st.markdown("""
+    <div class="hero-title">🚀 AI Crypto Signal Dashboard</div>
+    <div class="hero-subtitle">Premium kripto fırsat tarama paneli</div>
+    <div class="hero-caption">CoinGecko TRY verileri ile çalışır. Yatırım tavsiyesi değildir.</div>
+    """, unsafe_allow_html=True)
 
-with top_right:
-    a, b = st.columns(2)
-    with a:
-        st.markdown(
-            f"""
-            <div class="status-card">
-            <span class="green">● Canlı Veri</span><br>
-            <small>Son güncelleme: {now}</small>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with b:
-        if st.button("🔄 Yenile", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+with right:
+    st.markdown(f"""
+    <div class="status-box">
+        <b><span style="color:#22c55e;">● Canlı Veri</span></b><br>
+        <small>Son güncelleme: {now}</small>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("🔄 Yenile", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
-st.divider()
+st.markdown(f"""
+<div class="kpi-grid">
+    <div class="kpi-card purple">
+        <div class="kpi-icon icon-purple">⌕</div>
+        <div class="kpi-label">TARANAN COIN</div>
+        <div class="kpi-value value-white">{total}</div>
+        <div class="kpi-small">Toplam taranan coin</div>
+    </div>
+    <div class="kpi-card green">
+        <div class="kpi-icon icon-green">↗</div>
+        <div class="kpi-label">AKTİF SİNYAL</div>
+        <div class="kpi-value value-green">{signals}</div>
+        <div class="kpi-small">Sinyal üreten coin</div>
+    </div>
+    <div class="kpi-card yellow">
+        <div class="kpi-icon icon-yellow">🏆</div>
+        <div class="kpi-label">EN YÜKSEK SKOR</div>
+        <div class="kpi-value value-yellow">{best}/8</div>
+        <div class="kpi-small">Maksimum skor</div>
+    </div>
+    <div class="kpi-card blue">
+        <div class="kpi-icon icon-blue">★</div>
+        <div class="kpi-label">ORTALAMA SKOR</div>
+        <div class="kpi-value value-blue">{avg}</div>
+        <div class="kpi-small">Ortalama skor</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("TARANAN COIN", total, "Toplam taranan coin")
-m2.metric("AKTİF SİNYAL", signals, "Sinyal üreten coin")
-m3.metric("EN YÜKSEK SKOR", f"{best}/8", "Maksimum skor")
-m4.metric("ORTALAMA SKOR", avg, "Ortalama skor")
+st.markdown('<div class="section-title">📋 Profesyonel Sinyal Tablosu</div>', unsafe_allow_html=True)
 
-st.divider()
-
-st.markdown("## 📋 Profesyonel Sinyal Tablosu")
-
-f1, f2, f3 = st.columns([1.2, 1, 1.4])
+f1, f2, f3 = st.columns([1, 1, 1.4])
 
 with f1:
     min_score = st.slider("Minimum Skor", 0, 8, 5)
@@ -286,95 +504,35 @@ with f3:
     search = st.text_input("Coin ara", placeholder="BTC, ETH, SOL...")
 
 filtered = df[df["score"] >= min_score].copy()
-
-filtered["Risk Seviyesi"] = filtered["risk"].apply(risk_badge)
+filtered["risk_label"] = filtered["risk"].apply(risk_label)
 
 if risk_filter != "Tümü":
-    filtered = filtered[filtered["Risk Seviyesi"] == risk_filter]
+    filtered = filtered[filtered["risk_label"] == risk_filter]
 
 if search:
     filtered = filtered[filtered["symbol"].str.contains(search.upper(), na=False)]
 
-table = pd.DataFrame({
-    "Sembol": filtered["symbol"],
-    "Skor": filtered["score"],
-    "Risk Seviyesi": filtered["Risk Seviyesi"],
-    "Güncel Fiyat (TRY)": filtered["current_price"].apply(fmt_price),
-    "Alış Bölgesi (TRY)": filtered["Alış Bölgesi (TRY)"],
-    "Satış 1 (TRY)": filtered["sell_price_1"].apply(fmt_price),
-    "Satış 2 (TRY)": filtered["sell_price_2"].apply(fmt_price),
-    "Stop-Loss (TRY)": filtered["stop_price"].apply(fmt_price),
-    "Değişim (%)": filtered["change_percent"],
-    "Hacim (TRY)": filtered["volume"].apply(fmt_volume),
-    "Dibe Yakınlık (%)": filtered["proximity_to_low"],
-    "AI Güven": filtered["AI Güven"],
-    "Trend": filtered["Trend"],
-})
+st.markdown(render_table(filtered.head(25)), unsafe_allow_html=True)
 
-st.dataframe(table, use_container_width=True, height=460)
-
-st.divider()
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    st.markdown(
-        """
-        <div class="premium-card">
+st.markdown(f"""
+<div class="bottom-grid">
+    <div class="info-card">
         <h3>🧠 Piyasa Yorumu</h3>
-        <p>Orta seviye fırsatlar mevcut. İlk 3 sıradaki coinler güçlü sinyal veriyor.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-with c2:
-    st.markdown(
-        """
-        <div class="premium-card">
+        <p>Orta seviye fırsatlar mevcut. İlk sıralardaki coinler güçlü sinyal veriyor.</p>
+    </div>
+    <div class="info-card">
         <h3>🔥 En Güçlü Bölge</h3>
-        <p><span class="green">DeFi / Meme / Layer-1</span></p>
-        <small>Hacim ve skor yoğunluğu yüksek.</small>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-with c3:
-    st.markdown(
-        f"""
-        <div class="premium-card">
+        <p><span style="color:#22c55e;font-weight:900;">DeFi / Meme / Layer-1</span></p>
+    </div>
+    <div class="info-card">
         <h3>💸 Toplam Hacim</h3>
-        <p><span class="blue">{fmt_volume(df["volume"].sum())} TRY</span></p>
-        <small>Son 24 saat</small>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-with c4:
-    active_ratio = round((signals / total) * 100, 2) if total else 0
-    st.markdown(
-        f"""
-        <div class="premium-card">
-        <h3>⚡ Aktif Sinyal Oranı</h3>
-        <p><span class="purple">%{active_ratio}</span></p>
-        <small>{total} coin içinde</small>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-st.divider()
-
-g1, g2 = st.columns(2)
-
-with g1:
-    st.markdown("## 📊 Skor Liderleri")
-    st.bar_chart(df.head(20).set_index("symbol")["score"])
-
-with g2:
-    st.markdown("## 💸 Hacim Liderleri")
-    st.bar_chart(df.sort_values(by="volume", ascending=False).head(20).set_index("symbol")["volume"])
+        <p><span style="color:#38bdf8;font-weight:900;">{fmt_volume(df["volume"].sum())} TRY</span></p>
+    </div>
+    <div class="info-card">
+        <h3>⚠️ Uyarı</h3>
+        <p>Piyasa volatil. Stop-loss kullanmayı unutmayın.</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 st.caption("⚠️ Bu sistem yatırım tavsiyesi değildir. Sadece karar destek amacıyla kullanılır.")
