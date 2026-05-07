@@ -44,6 +44,77 @@ p, span, label, div {
     font-weight: 900 !important;
 }
 
+.signal-card {
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 22px;
+    padding: 22px;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.38);
+    min-height: 350px;
+}
+
+.signal-card:hover {
+    border-color: rgba(56, 189, 248, 0.65);
+    box-shadow: 0 18px 50px rgba(56,189,248,0.12);
+}
+
+.coin-title {
+    font-size: 26px;
+    font-weight: 900;
+    color: #38bdf8;
+}
+
+.coin-rank {
+    font-size: 15px;
+    color: #94a3b8;
+    font-weight: 700;
+}
+
+.score-box {
+    margin-top: 14px;
+    margin-bottom: 14px;
+    font-size: 34px;
+    font-weight: 900;
+    color: #22c55e;
+}
+
+.badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.16);
+    color: #86efac;
+    border: 1px solid rgba(34,197,94,0.35);
+    font-weight: 800;
+    margin-bottom: 14px;
+}
+
+.card-row {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(148,163,184,0.14);
+    padding: 8px 0;
+    font-size: 14px;
+}
+
+.card-label {
+    color: #cbd5e1;
+    font-weight: 700;
+}
+
+.card-value {
+    color: #ffffff;
+    font-weight: 800;
+}
+
+.target {
+    color: #22c55e;
+}
+
+.stop {
+    color: #ef4444;
+}
+
 [data-testid="stDataFrame"] {
     background: #0f172a;
     border-radius: 16px;
@@ -107,7 +178,6 @@ if not data:
     st.stop()
 
 df = pd.DataFrame(data).sort_values(by="score", ascending=False)
-
 df["entry_zone"] = df["current_price"].apply(entry_zone)
 
 total_coins = len(df)
@@ -127,21 +197,54 @@ st.subheader("🔥 En Verimli 3 Fırsat")
 top3 = df.head(3)
 cols = st.columns(3)
 
-for index, row in enumerate(top3.itertuples(), start=0):
-    with cols[index]:
-        st.markdown(f"### #{index + 1} {row.symbol}")
-        st.metric(
-            label="AI Skor",
-            value=f"{row.score}/8",
-            delta=f"%{row.change_percent}"
+for index, row in enumerate(top3.itertuples(), start=1):
+    with cols[index - 1]:
+        st.markdown(
+            f"""
+            <div class="signal-card">
+                <div class="coin-rank">#{index} Fırsat</div>
+                <div class="coin-title">{row.symbol}</div>
+                <div class="score-box">{row.score}/8</div>
+                <div class="badge">{row.risk}</div>
+
+                <div class="card-row">
+                    <span class="card-label">💰 Güncel Fiyat</span>
+                    <span class="card-value">{format_price(row.current_price)}</span>
+                </div>
+
+                <div class="card-row">
+                    <span class="card-label">🟢 Alış Bölgesi</span>
+                    <span class="card-value">{row.entry_zone}</span>
+                </div>
+
+                <div class="card-row">
+                    <span class="card-label">🎯 Satış 1</span>
+                    <span class="card-value target">{format_price(row.sell_price_1)}</span>
+                </div>
+
+                <div class="card-row">
+                    <span class="card-label">🚀 Satış 2</span>
+                    <span class="card-value target">{format_price(row.sell_price_2)}</span>
+                </div>
+
+                <div class="card-row">
+                    <span class="card-label">🛑 Stop-Loss</span>
+                    <span class="card-value stop">{format_price(row.stop_price)}</span>
+                </div>
+
+                <div class="card-row">
+                    <span class="card-label">📉 Değişim</span>
+                    <span class="card-value">%{row.change_percent}</span>
+                </div>
+
+                <div class="card-row">
+                    <span class="card-label">📊 Hacim</span>
+                    <span class="card-value">{format_volume(row.volume)}</span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
-        st.write(f"💰 **Fiyat:** {format_price(row.current_price)}")
-        st.write(f"🟢 **Alış Bölgesi:** {row.entry_zone}")
-        st.write(f"🎯 **Satış 1:** {format_price(row.sell_price_1)}")
-        st.write(f"🚀 **Satış 2:** {format_price(row.sell_price_2)}")
-        st.write(f"🛑 **Stop:** {format_price(row.stop_price)}")
-        st.write(f"⚠️ **Risk:** {row.risk}")
-        st.write(f"📊 **Hacim:** {format_volume(row.volume)}")
 
 st.divider()
 
