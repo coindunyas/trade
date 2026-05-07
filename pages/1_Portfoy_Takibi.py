@@ -9,13 +9,11 @@ from binance_tr import BinanceTRClient
 
 DB_FILE = "portfolio.db"
 
-
 st.set_page_config(
     page_title="Portföy Takibi",
     page_icon="💼",
     layout="wide",
 )
-
 
 st.title("💼 Portföy / Kar-Zarar Takibi")
 st.caption("Alış, satış, kalan coin, TRY kasa ve kar-zarar hesaplama paneli")
@@ -112,19 +110,23 @@ def load_trades():
 
 @st.cache_data(ttl=300)
 def load_prices():
-    client = BinanceTRClient()
-    tickers = client.get_tickers()
+    try:
+        client = BinanceTRClient()
+        tickers = client.get_tickers()
 
-    prices = {}
+        prices = {}
 
-    for item in tickers:
-        symbol = item.get("symbol")
-        price = item.get("lastPrice")
+        for item in tickers:
+            symbol = item.get("symbol")
+            price = item.get("lastPrice")
 
-        if symbol and price:
-            prices[symbol.upper()] = float(price)
+            if symbol and price:
+                prices[symbol.upper()] = float(price)
 
-    return prices
+        return prices
+
+    except Exception:
+        return {}
 
 
 def format_try(value):
@@ -160,22 +162,22 @@ def calculate_portfolio(trades_df, prices):
         buys = symbol_trades[symbol_trades["trade_type"] == "ALIŞ"]
         sells = symbol_trades[symbol_trades["trade_type"] == "SATIŞ"]
 
-        bought_qty = (buys["price"] * 0 + buys["quantity"]).sum()
+        bought_qty = buys["quantity"].sum()
         buy_cost = (buys["price"] * buys["quantity"]).sum()
 
-        sold_qty = (sells["price"] * 0 + sells["quantity"]).sum()
+        sold_qty = sells["quantity"].sum()
         sell_revenue = (sells["price"] * sells["quantity"]).sum()
 
         remaining_qty = bought_qty - sold_qty
-
         avg_cost = buy_cost / bought_qty if bought_qty > 0 else 0
 
         realized_pnl = sell_revenue - (avg_cost * sold_qty)
+
         current_price = prices.get(symbol, 0)
 
         current_value = remaining_qty * current_price
         remaining_cost = remaining_qty * avg_cost
-        unrealized_pnl = current_value - remaining_cost
+        unrealized_pnl = current_value - remaining_cost if current_price > 0 else 0
 
         total_pnl = realized_pnl + unrealized_pnl
 
@@ -191,7 +193,7 @@ def calculate_portfolio(trades_df, prices):
             "Satılan Miktar": round(sold_qty, 8),
             "Kalan Miktar": round(remaining_qty, 8),
             "Ortalama Maliyet": avg_cost,
-            "Anlık Fiyat": current_price,
+            "Anlık Fiyat": current_price if current_price > 0 else None,
             "Alış Toplamı": buy_cost,
             "Satış Toplamı": sell_revenue,
             "Kalan Değer": current_value,
@@ -215,6 +217,10 @@ def calculate_portfolio(trades_df, prices):
 init_db()
 
 prices = load_prices()
+
+if not prices:
+    st.warning("Canlı fiyatlar geçici olarak alınamadı. Manuel işlem takibi çalışmaya devam eder.")
+
 trades_df = load_trades()
 initial_capital = get_initial_capital()
 
@@ -318,7 +324,9 @@ else:
     ]
 
     for col in money_columns:
-        display_portfolio[col] = display_portfolio[col].apply(format_try)
+        display_portfolio[col] = display_portfolio[col].apply(
+            lambda x: format_try(x) if pd.notna(x) else "Fiyat Yok"
+        )
 
     st.dataframe(display_portfolio, use_container_width=True)
 
