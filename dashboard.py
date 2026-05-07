@@ -7,13 +7,13 @@ from scoring import score_symbol
 
 st.set_page_config(
     page_title="AI Crypto Signal Dashboard",
-    page_icon="📊",
+    page_icon="🚀",
     layout="wide",
 )
 
 
-st.title("📊 AI Crypto Signal Dashboard")
-st.caption("CoinGecko TRY verileriyle çalışan sinyal paneli")
+st.title("🚀 AI Crypto Signal Dashboard")
+st.caption("TRY bazlı kripto fırsat tarama paneli | CoinGecko API")
 
 
 @st.cache_data(ttl=300)
@@ -25,10 +25,33 @@ def load_data():
 
     for ticker in tickers:
         result = score_symbol(ticker)
+
         if result:
             results.append(result)
 
     return results
+
+
+def format_price(value):
+    try:
+        value = float(value)
+        if value >= 1:
+            return f"{value:,.2f} TL"
+        return f"{value:.6f} TL"
+    except Exception:
+        return value
+
+
+def format_volume(value):
+    try:
+        value = float(value)
+        if value >= 1_000_000_000:
+            return f"{value / 1_000_000_000:.2f}B TL"
+        if value >= 1_000_000:
+            return f"{value / 1_000_000:.2f}M TL"
+        return f"{value:,.0f} TL"
+    except Exception:
+        return value
 
 
 data = load_data()
@@ -40,47 +63,95 @@ if not data:
 df = pd.DataFrame(data)
 df = df.sort_values(by="score", ascending=False)
 
-top3 = df.head(3)
+total_coins = len(df)
+signal_count = len(df[df["score"] >= 5])
+best_score = int(df["score"].max())
 
-col1, col2, col3 = st.columns(3)
+col_a, col_b, col_c = st.columns(3)
 
-for idx, row in enumerate(top3.itertuples(), start=1):
-    with [col1, col2, col3][idx - 1]:
-        st.metric(
-            label=f"{idx}. {row.symbol}",
-            value=f"{row.score}/8",
-            delta=f"%{round(row.change_percent, 2)}"
-        )
-        st.write(f"💰 Fiyat: {row.current_price}")
-        st.write(f"🎯 Hedef: {row.target_price}")
-        st.write(f"🛑 Stop: {row.stop_price}")
-        st.write(f"⚠️ Risk: {row.risk}")
+col_a.metric("Taranan Coin", total_coins)
+col_b.metric("Sinyal Adayı", signal_count)
+col_c.metric("En Yüksek Skor", f"{best_score}/8")
 
 st.divider()
 
-st.subheader("🔥 En İyi Sinyaller")
+st.subheader("🔥 En Verimli 3 Fırsat")
 
-filtered = df[df["score"] >= 5]
+top3 = df.head(3)
+cols = st.columns(3)
 
-st.dataframe(
-    filtered[
-        [
-            "symbol",
-            "score",
-            "risk",
-            "current_price",
-            "change_percent",
-            "target_price",
-            "stop_price",
-            "volume",
-        ]
-    ],
-    use_container_width=True,
+for index, row in enumerate(top3.itertuples(), start=0):
+    with cols[index]:
+        st.markdown(f"### #{index + 1} {row.symbol}")
+        st.metric(
+            label="AI Skor",
+            value=f"{row.score}/8",
+            delta=f"%{row.change_percent}"
+        )
+        st.write(f"💰 **Fiyat:** {format_price(row.current_price)}")
+        st.write(f"🟢 **Alış:** {format_price(row.entry_price)}")
+        st.write(f"🎯 **Satış 1:** {format_price(row.sell_price_1)}")
+        st.write(f"🚀 **Satış 2:** {format_price(row.sell_price_2)}")
+        st.write(f"🛑 **Stop:** {format_price(row.stop_price)}")
+        st.write(f"⚠️ **Risk:** {row.risk}")
+        st.write(f"📊 **Hacim:** {format_volume(row.volume)}")
+
+st.divider()
+
+st.subheader("📋 Sinyal Tablosu")
+
+min_score = st.slider(
+    "Minimum skor filtresi",
+    min_value=0,
+    max_value=8,
+    value=5
 )
 
+filtered_df = df[df["score"] >= min_score].copy()
+
+display_df = filtered_df[
+    [
+        "symbol",
+        "score",
+        "risk",
+        "current_price",
+        "entry_price",
+        "sell_price_1",
+        "sell_price_2",
+        "stop_price",
+        "change_percent",
+        "volume",
+        "proximity_to_low",
+    ]
+]
+
+st.dataframe(display_df, use_container_width=True)
+
 st.divider()
 
-st.subheader("📊 Skor Dağılımı")
-st.bar_chart(df.set_index("symbol")["score"].head(20))
+st.subheader("📊 En Yüksek Skorlu Coinler")
 
-st.caption("Not: Bu panel yatırım tavsiyesi değildir. Sadece karar destek sistemidir.")
+chart_df = df.head(20).set_index("symbol")
+st.bar_chart(chart_df["score"])
+
+st.divider()
+
+st.subheader("💸 Hacim Liderleri")
+
+volume_df = df.sort_values(by="volume", ascending=False).head(20).set_index("symbol")
+st.bar_chart(volume_df["volume"])
+
+st.divider()
+
+st.subheader("🧠 Sistem Yorumu")
+
+if signal_count == 0:
+    st.info("Şu anda güçlü sinyal yok. Piyasa sakin veya kriterler oluşmamış.")
+elif best_score >= 7:
+    st.success("Güçlü fırsatlar mevcut. İlk 3 coin detaylı incelenebilir.")
+elif best_score >= 5:
+    st.warning("Orta seviye fırsatlar var. Stop-loss disiplini önemli.")
+else:
+    st.info("Net fırsat sinyali zayıf.")
+
+st.caption("⚠️ Bu sistem yatırım tavsiyesi değildir. Sadece karar destek amacıyla kullanılır.")
