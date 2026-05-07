@@ -29,6 +29,16 @@ h1, h2, h3, p, div, span, label {
     border-radius: 16px;
 }
 
+[data-testid="stMetricValue"] {
+    color: white !important;
+    font-weight: 900 !important;
+}
+
+[data-testid="stMetricLabel"] {
+    color: #cbd5e1 !important;
+    font-weight: 800 !important;
+}
+
 [data-testid="stDataFrame"] {
     border-radius: 16px;
     overflow: hidden;
@@ -40,6 +50,31 @@ h1, h2, h3, p, div, span, label {
     border-radius: 10px;
     border: none;
     font-weight: 700;
+}
+
+.stSelectbox div[data-baseweb="select"] > div {
+    color: black !important;
+    background-color: white !important;
+    border-radius: 10px !important;
+}
+
+div[role="listbox"] div {
+    color: black !important;
+    background-color: white !important;
+}
+
+.stTextInput input {
+    color: black !important;
+    background-color: white !important;
+    border-radius: 10px !important;
+}
+
+.stTextInput input::placeholder {
+    color: #666 !important;
+}
+
+.stSelectbox svg {
+    fill: black !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -165,7 +200,6 @@ st.divider()
 st.subheader("🔥 En Verimli 3 Fırsat")
 
 top3 = df.head(3)
-
 cols = st.columns(3)
 
 for i in range(len(top3)):
