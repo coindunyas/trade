@@ -10,6 +10,51 @@ st.set_page_config(
     layout="wide",
 )
 
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%);
+    color: #f8fafc;
+}
+
+h1, h2, h3 {
+    color: #f8fafc !important;
+    font-weight: 800 !important;
+}
+
+p, span, label, div {
+    color: #e5e7eb;
+}
+
+[data-testid="stMetric"] {
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    padding: 20px;
+    border-radius: 18px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+}
+
+[data-testid="stMetricLabel"] {
+    color: #cbd5e1 !important;
+    font-weight: 700 !important;
+}
+
+[data-testid="stMetricValue"] {
+    color: #ffffff !important;
+    font-weight: 900 !important;
+}
+
+[data-testid="stDataFrame"] {
+    background: #0f172a;
+    border-radius: 16px;
+}
+
+.stAlert {
+    border-radius: 16px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("🚀 AI Crypto Signal Dashboard")
 st.caption("TRY bazlı kripto fırsat tarama paneli | CoinGecko API")
 
