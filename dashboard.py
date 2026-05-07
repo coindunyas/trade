@@ -50,7 +50,7 @@ p, span, label, div {
     border-radius: 22px;
     padding: 22px;
     box-shadow: 0 14px 40px rgba(0,0,0,0.38);
-    min-height: 350px;
+    min-height: 360px;
 }
 
 .signal-card:hover {
@@ -105,6 +105,7 @@ p, span, label, div {
 .card-value {
     color: #ffffff;
     font-weight: 800;
+    text-align: right;
 }
 
 .target {
@@ -129,6 +130,7 @@ p, span, label, div {
 st.title("🚀 AI Crypto Signal Dashboard")
 st.caption("TRY bazlı kripto fırsat tarama paneli | CoinGecko API")
 
+
 @st.cache_data(ttl=300)
 def load_data():
     client = BinanceTRClient()
@@ -142,6 +144,7 @@ def load_data():
 
     return results
 
+
 def format_price(value):
     try:
         value = float(value)
@@ -150,6 +153,7 @@ def format_price(value):
         return f"{value:.6f} TL"
     except Exception:
         return value
+
 
 def format_volume(value):
     try:
@@ -162,6 +166,7 @@ def format_volume(value):
     except Exception:
         return value
 
+
 def entry_zone(value):
     try:
         price = float(value)
@@ -170,6 +175,7 @@ def entry_zone(value):
         return f"{format_price(low)} - {format_price(high)}"
     except Exception:
         return "-"
+
 
 data = load_data()
 
@@ -199,52 +205,51 @@ cols = st.columns(3)
 
 for index, row in enumerate(top3.itertuples(), start=1):
     with cols[index - 1]:
-        st.markdown(
-            f"""
-            <div class="signal-card">
-                <div class="coin-rank">#{index} Fırsat</div>
-                <div class="coin-title">{row.symbol}</div>
-                <div class="score-box">{row.score}/8</div>
-                <div class="badge">{row.risk}</div>
+        card_html = f"""
+        <div class="signal-card">
+            <div class="coin-rank">#{index} Fırsat</div>
+            <div class="coin-title">{row.symbol}</div>
+            <div class="score-box">{row.score}/8</div>
+            <div class="badge">{row.risk}</div>
 
-                <div class="card-row">
-                    <span class="card-label">💰 Güncel Fiyat</span>
-                    <span class="card-value">{format_price(row.current_price)}</span>
-                </div>
-
-                <div class="card-row">
-                    <span class="card-label">🟢 Alış Bölgesi</span>
-                    <span class="card-value">{row.entry_zone}</span>
-                </div>
-
-                <div class="card-row">
-                    <span class="card-label">🎯 Satış 1</span>
-                    <span class="card-value target">{format_price(row.sell_price_1)}</span>
-                </div>
-
-                <div class="card-row">
-                    <span class="card-label">🚀 Satış 2</span>
-                    <span class="card-value target">{format_price(row.sell_price_2)}</span>
-                </div>
-
-                <div class="card-row">
-                    <span class="card-label">🛑 Stop-Loss</span>
-                    <span class="card-value stop">{format_price(row.stop_price)}</span>
-                </div>
-
-                <div class="card-row">
-                    <span class="card-label">📉 Değişim</span>
-                    <span class="card-value">%{row.change_percent}</span>
-                </div>
-
-                <div class="card-row">
-                    <span class="card-label">📊 Hacim</span>
-                    <span class="card-value">{format_volume(row.volume)}</span>
-                </div>
+            <div class="card-row">
+                <span class="card-label">💰 Güncel Fiyat</span>
+                <span class="card-value">{format_price(row.current_price)}</span>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+
+            <div class="card-row">
+                <span class="card-label">🟢 Alış Bölgesi</span>
+                <span class="card-value">{row.entry_zone}</span>
+            </div>
+
+            <div class="card-row">
+                <span class="card-label">🎯 Satış 1</span>
+                <span class="card-value target">{format_price(row.sell_price_1)}</span>
+            </div>
+
+            <div class="card-row">
+                <span class="card-label">🚀 Satış 2</span>
+                <span class="card-value target">{format_price(row.sell_price_2)}</span>
+            </div>
+
+            <div class="card-row">
+                <span class="card-label">🛑 Stop-Loss</span>
+                <span class="card-value stop">{format_price(row.stop_price)}</span>
+            </div>
+
+            <div class="card-row">
+                <span class="card-label">📉 Değişim</span>
+                <span class="card-value">%{row.change_percent}</span>
+            </div>
+
+            <div class="card-row">
+                <span class="card-label">📊 Hacim</span>
+                <span class="card-value">{format_volume(row.volume)}</span>
+            </div>
+        </div>
+        """
+
+        st.markdown(card_html, unsafe_allow_html=True)
 
 st.divider()
 
