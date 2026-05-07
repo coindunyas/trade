@@ -82,24 +82,34 @@ div[role="listbox"] div {
 
 @st.cache_data(ttl=300)
 def load_data():
-    client = BinanceTRClient()
-    tickers = client.get_tickers()
-    results = []
+    try:
+        client = BinanceTRClient()
+        tickers = client.get_tickers()
+        results = []
 
-    for ticker in tickers:
-        result = score_symbol(ticker)
-        if result:
-            results.append(result)
+        for ticker in tickers:
+            result = score_symbol(ticker)
+            if result:
+                results.append(result)
 
-    return results
+        return results
+
+    except Exception:
+        return []
 
 
 def format_price(value):
     try:
         value = float(value)
-        if value >= 1:
-            return f"{value:,.2f} TL"
-        return f"{value:.6f} TL"
+
+        if value == 0:
+            return "0.00 TL"
+
+        if value < 1:
+            return f"{value:.8f} TL"
+
+        return f"{value:,.2f} TL"
+
     except Exception:
         return "-"
 
@@ -107,11 +117,15 @@ def format_price(value):
 def format_volume(value):
     try:
         value = float(value)
+
         if value >= 1_000_000_000:
             return f"{value / 1_000_000_000:.2f}B TL"
+
         if value >= 1_000_000:
             return f"{value / 1_000_000:.2f}M TL"
+
         return f"{value:,.0f} TL"
+
     except Exception:
         return "-"
 
@@ -122,16 +136,20 @@ def entry_zone(value):
         low = price * 0.98
         high = price * 0.99
         return f"{format_price(low)} - {format_price(high)}"
+
     except Exception:
         return "-"
 
 
 def risk_label(value):
     value = str(value)
+
     if "Düşük" in value:
         return "Düşük-Orta"
+
     if "Orta" in value:
         return "Orta"
+
     return "Yüksek"
 
 
@@ -140,6 +158,7 @@ def ai_confidence(score, volume):
         score_part = float(score) / 8 * 70
         volume_part = min(float(volume) / 1_000_000_000, 1) * 30
         return f"%{round(score_part + volume_part)}"
+
     except Exception:
         return "%0"
 
@@ -147,11 +166,15 @@ def ai_confidence(score, volume):
 def trend_label(change):
     try:
         change = float(change)
+
         if change > 1:
             return "Yükseliş"
+
         if change < -1:
             return "Düşüş"
+
         return "Yatay"
+
     except Exception:
         return "Yatay"
 
@@ -163,30 +186,40 @@ st.caption("CoinGecko TRY verileri ile çalışır. Yatırım tavsiyesi değildi
 col_live, col_btn = st.columns([3, 1])
 
 with col_live:
-    st.success(f"● Canlı Veri | Son güncelleme: {datetime.now().strftime('%H:%M:%S')}")
+    st.success(
+        f"● Canlı Veri | Son güncelleme: {datetime.now().strftime('%H:%M:%S')}"
+    )
 
 with col_btn:
     if st.button("🔄 Verileri Yenile", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
+
 data = load_data()
 
 if not data:
-    st.warning("Veri bulunamadı.")
+    st.warning(
+        "CoinGecko verisi şu anda alınamadı. Birkaç dakika sonra tekrar deneyin."
+    )
     st.stop()
+
 
 df = pd.DataFrame(data).sort_values(by="score", ascending=False)
 
 df["alis_bolgesi"] = df["current_price"].apply(entry_zone)
 df["risk_seviyesi"] = df["risk"].apply(risk_label)
-df["ai_guven"] = df.apply(lambda x: ai_confidence(x["score"], x["volume"]), axis=1)
+df["ai_guven"] = df.apply(
+    lambda x: ai_confidence(x["score"], x["volume"]),
+    axis=1
+)
 df["trend"] = df["change_percent"].apply(trend_label)
 
 total = len(df)
 signals = len(df[df["score"] >= 5])
 best = int(df["score"].max())
 avg = round(df["score"].mean(), 1)
+
 
 c1, c2, c3, c4 = st.columns(4)
 
@@ -200,6 +233,7 @@ st.divider()
 st.subheader("🔥 En Verimli 3 Fırsat")
 
 top3 = df.head(3)
+
 cols = st.columns(3)
 
 for i in range(len(top3)):
@@ -208,7 +242,11 @@ for i in range(len(top3)):
     with cols[i]:
         with st.container(border=True):
             st.markdown(f"### #{i + 1} {row['symbol']}")
-            st.metric("AI Skor", f"{row['score']}/8", f"%{row['change_percent']}")
+            st.metric(
+                "AI Skor",
+                f"{row['score']}/8",
+                f"%{row['change_percent']}"
+            )
 
             st.write(f"⚠️ **Risk:** {row['risk_seviyesi']}")
             st.write(f"💰 **Güncel Fiyat:** {format_price(row['current_price'])}")
@@ -230,18 +268,28 @@ with f1:
     min_score = st.slider("Minimum Skor", 0, 8, 5)
 
 with f2:
-    selected_risk = st.selectbox("Risk Seviyesi", ["Tümü", "Düşük-Orta", "Orta", "Yüksek"])
+    selected_risk = st.selectbox(
+        "Risk Seviyesi",
+        ["Tümü", "Düşük-Orta", "Orta", "Yüksek"]
+    )
 
 with f3:
-    search = st.text_input("Coin ara", placeholder="BTC, ETH, SOL...")
+    search = st.text_input(
+        "Coin ara",
+        placeholder="BTC, ETH, SOL..."
+    )
 
 filtered = df[df["score"] >= min_score].copy()
 
 if selected_risk != "Tümü":
-    filtered = filtered[filtered["risk_seviyesi"] == selected_risk]
+    filtered = filtered[
+        filtered["risk_seviyesi"] == selected_risk
+    ]
 
 if search:
-    filtered = filtered[filtered["symbol"].str.contains(search.upper(), na=False)]
+    filtered = filtered[
+        filtered["symbol"].str.contains(search.upper(), na=False)
+    ]
 
 table = pd.DataFrame({
     "Sembol": filtered["symbol"],
@@ -259,7 +307,11 @@ table = pd.DataFrame({
     "Trend": filtered["trend"],
 })
 
-st.dataframe(table, use_container_width=True, height=520)
+st.dataframe(
+    table,
+    use_container_width=True,
+    height=520
+)
 
 st.caption(f"Toplam {len(filtered)} coin gösteriliyor.")
 
@@ -269,23 +321,43 @@ g1, g2 = st.columns(2)
 
 with g1:
     st.subheader("📊 Skor Liderleri")
-    st.bar_chart(df.head(20).set_index("symbol")["score"])
+    st.bar_chart(
+        df.head(20).set_index("symbol")["score"]
+    )
 
 with g2:
     st.subheader("💸 Hacim Liderleri")
-    st.bar_chart(df.sort_values(by="volume", ascending=False).head(20).set_index("symbol")["volume"])
+    st.bar_chart(
+        df.sort_values(
+            by="volume",
+            ascending=False
+        ).head(20).set_index("symbol")["volume"]
+    )
 
 st.divider()
 
 st.subheader("🧠 Sistem Yorumu")
 
 if signals == 0:
-    st.info("Şu anda güçlü sinyal yok. Piyasa sakin veya kriterler oluşmamış.")
-elif best >= 7:
-    st.success("Güçlü fırsatlar mevcut. İlk 3 coin detaylı incelenebilir.")
-elif best >= 5:
-    st.warning("Orta seviye fırsatlar var. Kademeli satış ve stop-loss önemli.")
-else:
-    st.info("Net fırsat sinyali zayıf.")
+    st.info(
+        "Şu anda güçlü sinyal yok. Piyasa sakin veya kriterler oluşmamış."
+    )
 
-st.caption("⚠️ Bu sistem yatırım tavsiyesi değildir. Sadece karar destek amacıyla kullanılır.")
+elif best >= 7:
+    st.success(
+        "Güçlü fırsatlar mevcut. İlk 3 coin detaylı incelenebilir."
+    )
+
+elif best >= 5:
+    st.warning(
+        "Orta seviye fırsatlar var. Kademeli satış ve stop-loss önemli."
+    )
+
+else:
+    st.info(
+        "Net fırsat sinyali zayıf."
+    )
+
+st.caption(
+    "⚠️ Bu sistem yatırım tavsiyesi değildir. Sadece karar destek amacıyla kullanılır."
+)
