@@ -11,48 +11,95 @@ st.set_page_config(
     layout="wide",
 )
 
-
-st.title("🚀 AI Crypto Signal Dashboard")
-st.caption("TRY bazlı kripto fırsat tarama paneli | CoinGecko API")
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(135deg, #0f172a 0%, #111827 45%, #020617 100%);
+    color: white;
+}
+[data-testid="stMetric"] {
+    background: rgba(255,255,255,0.08);
+    padding: 22px;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+.card {
+    background: rgba(255,255,255,0.08);
+    padding: 24px;
+    border-radius: 22px;
+    border: 1px solid rgba(255,255,255,0.14);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.4);
+    margin-bottom: 18px;
+}
+.coin-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #38bdf8;
+}
+.score {
+    font-size: 34px;
+    font-weight: 900;
+    color: #22c55e;
+}
+.small {
+    color: #cbd5e1;
+    font-size: 14px;
+}
+.badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(34,197,94,0.18);
+    color: #86efac;
+    font-weight: 700;
+}
+h1, h2, h3 {
+    color: white;
+}
+</style>
+""", unsafe_allow_html=True)
 
 
 @st.cache_data(ttl=300)
 def load_data():
     client = BinanceTRClient()
     tickers = client.get_tickers()
-
     results = []
 
     for ticker in tickers:
         result = score_symbol(ticker)
-
         if result:
             results.append(result)
 
     return results
 
 
-def format_price(value):
+def price(v):
     try:
-        value = float(value)
-        if value >= 1:
-            return f"{value:,.2f} TL"
-        return f"{value:.6f} TL"
+        v = float(v)
+        if v >= 1:
+            return f"{v:,.2f} TL"
+        return f"{v:.6f} TL"
     except Exception:
-        return value
+        return str(v)
 
 
-def format_volume(value):
+def volume(v):
     try:
-        value = float(value)
-        if value >= 1_000_000_000:
-            return f"{value / 1_000_000_000:.2f}B TL"
-        if value >= 1_000_000:
-            return f"{value / 1_000_000:.2f}M TL"
-        return f"{value:,.0f} TL"
+        v = float(v)
+        if v >= 1_000_000_000:
+            return f"{v / 1_000_000_000:.2f}B TL"
+        if v >= 1_000_000:
+            return f"{v / 1_000_000:.2f}M TL"
+        return f"{v:,.0f} TL"
     except Exception:
-        return value
+        return str(v)
 
+
+st.markdown("# 🚀 AI Crypto Signal Dashboard")
+st.markdown("### Premium kripto fırsat tarama paneli")
+st.caption("CoinGecko TRY verileri ile çalışır. Yatırım tavsiyesi değildir.")
 
 data = load_data()
 
@@ -60,97 +107,100 @@ if not data:
     st.warning("Veri bulunamadı.")
     st.stop()
 
-df = pd.DataFrame(data)
-df = df.sort_values(by="score", ascending=False)
+df = pd.DataFrame(data).sort_values(by="score", ascending=False)
 
-total_coins = len(df)
-signal_count = len(df[df["score"] >= 5])
-best_score = int(df["score"].max())
+total = len(df)
+signals = len(df[df["score"] >= 5])
+best = int(df["score"].max())
+avg_score = round(df["score"].mean(), 2)
 
-col_a, col_b, col_c = st.columns(3)
+m1, m2, m3, m4 = st.columns(4)
 
-col_a.metric("Taranan Coin", total_coins)
-col_b.metric("Sinyal Adayı", signal_count)
-col_c.metric("En Yüksek Skor", f"{best_score}/8")
+m1.metric("Taranan Coin", total)
+m2.metric("Aktif Sinyal", signals)
+m3.metric("En Yüksek Skor", f"{best}/8")
+m4.metric("Ortalama Skor", avg_score)
 
 st.divider()
 
-st.subheader("🔥 En Verimli 3 Fırsat")
+st.markdown("## 🔥 En Verimli 3 Fırsat")
 
 top3 = df.head(3)
 cols = st.columns(3)
 
-for index, row in enumerate(top3.itertuples(), start=0):
-    with cols[index]:
-        st.markdown(f"### #{index + 1} {row.symbol}")
-        st.metric(
-            label="AI Skor",
-            value=f"{row.score}/8",
-            delta=f"%{row.change_percent}"
+for i, row in enumerate(top3.itertuples(), start=0):
+    with cols[i]:
+        st.markdown(
+            f"""
+            <div class="card">
+                <div class="coin-title">#{i+1} {row.symbol}</div>
+                <div class="small">{getattr(row, "name", "")}</div>
+                <br>
+                <div class="score">{row.score}/8</div>
+                <span class="badge">{row.risk}</span>
+                <br><br>
+                <b>💰 Fiyat:</b> {price(row.current_price)}<br>
+                <b>📉 Günlük:</b> %{row.change_percent}<br><br>
+                <b>🟢 Alış:</b> {price(row.entry_price)}<br>
+                <b>🎯 Satış 1:</b> {price(row.sell_price_1)}<br>
+                <b>🚀 Satış 2:</b> {price(row.sell_price_2)}<br>
+                <b>🛑 Stop:</b> {price(row.stop_price)}<br><br>
+                <b>📊 Hacim:</b> {volume(row.volume)}
+            </div>
+            """,
+            unsafe_allow_html=True
         )
-        st.write(f"💰 **Fiyat:** {format_price(row.current_price)}")
-        st.write(f"🟢 **Alış:** {format_price(row.entry_price)}")
-        st.write(f"🎯 **Satış 1:** {format_price(row.sell_price_1)}")
-        st.write(f"🚀 **Satış 2:** {format_price(row.sell_price_2)}")
-        st.write(f"🛑 **Stop:** {format_price(row.stop_price)}")
-        st.write(f"⚠️ **Risk:** {row.risk}")
-        st.write(f"📊 **Hacim:** {format_volume(row.volume)}")
 
 st.divider()
 
-st.subheader("📋 Sinyal Tablosu")
+st.markdown("## 📋 Profesyonel Sinyal Tablosu")
 
-min_score = st.slider(
-    "Minimum skor filtresi",
-    min_value=0,
-    max_value=8,
-    value=5
+min_score = st.slider("Minimum skor", 0, 8, 5)
+
+filtered = df[df["score"] >= min_score].copy()
+
+st.dataframe(
+    filtered[
+        [
+            "symbol",
+            "score",
+            "risk",
+            "current_price",
+            "entry_price",
+            "sell_price_1",
+            "sell_price_2",
+            "stop_price",
+            "change_percent",
+            "volume",
+            "proximity_to_low",
+        ]
+    ],
+    use_container_width=True,
+    height=420,
 )
 
-filtered_df = df[df["score"] >= min_score].copy()
+st.divider()
 
-display_df = filtered_df[
-    [
-        "symbol",
-        "score",
-        "risk",
-        "current_price",
-        "entry_price",
-        "sell_price_1",
-        "sell_price_2",
-        "stop_price",
-        "change_percent",
-        "volume",
-        "proximity_to_low",
-    ]
-]
+c1, c2 = st.columns(2)
 
-st.dataframe(display_df, use_container_width=True)
+with c1:
+    st.markdown("## 📊 Skor Liderleri")
+    st.bar_chart(df.head(20).set_index("symbol")["score"])
+
+with c2:
+    st.markdown("## 💸 Hacim Liderleri")
+    st.bar_chart(df.sort_values(by="volume", ascending=False).head(20).set_index("symbol")["volume"])
 
 st.divider()
 
-st.subheader("📊 En Yüksek Skorlu Coinler")
+st.markdown("## 🧠 AI Piyasa Yorumu")
 
-chart_df = df.head(20).set_index("symbol")
-st.bar_chart(chart_df["score"])
-
-st.divider()
-
-st.subheader("💸 Hacim Liderleri")
-
-volume_df = df.sort_values(by="volume", ascending=False).head(20).set_index("symbol")
-st.bar_chart(volume_df["volume"])
-
-st.divider()
-
-st.subheader("🧠 Sistem Yorumu")
-
-if signal_count == 0:
+if signals == 0:
     st.info("Şu anda güçlü sinyal yok. Piyasa sakin veya kriterler oluşmamış.")
-elif best_score >= 7:
-    st.success("Güçlü fırsatlar mevcut. İlk 3 coin detaylı incelenebilir.")
-elif best_score >= 5:
-    st.warning("Orta seviye fırsatlar var. Stop-loss disiplini önemli.")
+elif best >= 7:
+    st.success("Güçlü fırsatlar mevcut. İlk 3 coin detaylı takip edilebilir.")
+elif best >= 5:
+    st.warning("Orta seviye fırsatlar var. Kademeli satış ve stop-loss önemli.")
 else:
     st.info("Net fırsat sinyali zayıf.")
 
