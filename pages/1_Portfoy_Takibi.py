@@ -47,6 +47,14 @@ def init_db():
     """)
 
     cur.execute("""
+    CREATE TABLE IF NOT EXISTS manual_prices (
+        symbol TEXT PRIMARY KEY,
+        price REAL,
+        updated_at TEXT
+    )
+    """)
+
+    cur.execute("""
     INSERT OR IGNORE INTO settings (key, value)
     VALUES ('initial_capital', 0)
     """)
@@ -80,14 +88,7 @@ def add_trade(symbol, trade_type, price, quantity, note):
     cur = conn.cursor()
 
     cur.execute("""
-    INSERT INTO trades (
-        created_at,
-        symbol,
-        trade_type,
-        price,
-        quantity,
-        note
-    )
+    INSERT INTO trades (created_at, symbol, trade_type, price, quantity, note)
     VALUES (?, ?, ?, ?, ?, ?)
     """, (
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -105,31 +106,60 @@ def add_trade(symbol, trade_type, price, quantity, note):
 def delete_trade(trade_id):
     conn = connect_db()
     cur = conn.cursor()
-
-    cur.execute(
-        "DELETE FROM trades WHERE id=?",
-        (trade_id,)
-    )
-
+    cur.execute("DELETE FROM trades WHERE id=?", (trade_id,))
     conn.commit()
     conn.close()
 
 
 def load_trades():
     conn = connect_db()
-
-    df = pd.read_sql_query(
-        "SELECT * FROM trades ORDER BY id DESC",
-        conn
-    )
-
+    df = pd.read_sql_query("SELECT * FROM trades ORDER BY id DESC", conn)
     conn.close()
-
     return df
 
 
+def save_manual_price(symbol, price):
+    conn = connect_db()
+    cur = conn.cursor()
+
+    symbol = symbol.upper().strip()
+
+    cur.execute("""
+    INSERT INTO manual_prices (symbol, price, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(symbol)
+    DO UPDATE SET price=excluded.price, updated_at=excluded.updated_at
+    """, (
+        symbol,
+        float(price),
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    ))
+
+    conn.commit()
+    conn.close()
+
+
+def load_manual_prices():
+    conn = connect_db()
+    df = pd.read_sql_query("SELECT * FROM manual_prices", conn)
+    conn.close()
+
+    prices = {}
+
+    for _, row in df.iterrows():
+        symbol = str(row["symbol"]).upper().strip()
+        price = float(row["price"])
+
+        prices[symbol] = price
+
+        if symbol.endswith("TRY"):
+            prices[symbol.replace("TRY", "")] = price
+
+    return prices, df
+
+
 @st.cache_data(ttl=300)
-def load_prices():
+def load_live_prices():
     try:
         client = BinanceTRClient()
         tickers = client.get_tickers()
@@ -144,8 +174,7 @@ def load_prices():
                 prices[symbol] = float(price)
 
                 if symbol.endswith("TRY"):
-                    base_symbol = symbol.replace("TRY", "")
-                    prices[base_symbol] = float(price)
+                    prices[symbol.replace("TRY", "")] = float(price)
 
         return prices
 
@@ -153,7 +182,14 @@ def load_prices():
         return {}
 
 
-def format_try(value):
+def format_money(value):
+    try:
+        return f"{float(value):,.2f} TL"
+    except Exception:
+        return "-"
+
+
+def format_price(value):
     try:
         value = float(value)
 
@@ -170,7 +206,6 @@ def format_try(value):
 
 
 def calculate_portfolio(trades_df, prices):
-
     if trades_df.empty:
         return pd.DataFrame(), {
             "used_try": 0,
@@ -192,56 +227,33 @@ def calculate_portfolio(trades_df, prices):
     total_current_value = 0
 
     for symbol in symbols:
+        symbol_trades = trades_df[trades_df["symbol"] == symbol].copy()
 
-        symbol_trades = trades_df[
-            trades_df["symbol"] == symbol
-        ].copy()
-
-        buys = symbol_trades[
-            symbol_trades["trade_type"] == "ALIŞ"
-        ]
-
-        sells = symbol_trades[
-            symbol_trades["trade_type"] == "SATIŞ"
-        ]
+        buys = symbol_trades[symbol_trades["trade_type"] == "ALIŞ"]
+        sells = symbol_trades[symbol_trades["trade_type"] == "SATIŞ"]
 
         bought_qty = buys["quantity"].sum()
         buy_cost = (buys["price"] * buys["quantity"]).sum()
 
         sold_qty = sells["quantity"].sum()
-        sell_revenue = (
-            sells["price"] * sells["quantity"]
-        ).sum()
+        sell_revenue = (sells["price"] * sells["quantity"]).sum()
 
         remaining_qty = bought_qty - sold_qty
 
-        avg_cost = (
-            buy_cost / bought_qty
-            if bought_qty > 0 else 0
-        )
-
-        realized_pnl = (
-            sell_revenue - (avg_cost * sold_qty)
-        )
+        avg_cost = buy_cost / bought_qty if bought_qty > 0 else 0
+        realized_pnl = sell_revenue - (avg_cost * sold_qty)
 
         clean_symbol = str(symbol).upper().strip()
 
         current_price = prices.get(
             clean_symbol,
-            prices.get(
-                clean_symbol.replace("TRY", ""),
-                0
-            )
+            prices.get(clean_symbol.replace("TRY", ""), 0)
         )
 
         current_value = remaining_qty * current_price
         remaining_cost = remaining_qty * avg_cost
 
-        unrealized_pnl = (
-            current_value - remaining_cost
-            if current_price > 0 else 0
-        )
-
+        unrealized_pnl = current_value - remaining_cost if current_price > 0 else 0
         total_pnl = realized_pnl + unrealized_pnl
 
         total_used_try += buy_cost
@@ -256,11 +268,7 @@ def calculate_portfolio(trades_df, prices):
             "Satılan Miktar": round(sold_qty, 8),
             "Kalan Miktar": round(remaining_qty, 8),
             "Ortalama Maliyet": avg_cost,
-            "Anlık Fiyat": (
-                current_price
-                if current_price > 0
-                else None
-            ),
+            "Anlık Fiyat": current_price if current_price > 0 else None,
             "Alış Toplamı": buy_cost,
             "Satış Toplamı": sell_revenue,
             "Kalan Değer": current_value,
@@ -275,10 +283,7 @@ def calculate_portfolio(trades_df, prices):
         "realized_pnl": total_realized_pnl,
         "unrealized_pnl": total_unrealized_pnl,
         "current_value": total_current_value,
-        "total_pnl": (
-            total_realized_pnl +
-            total_unrealized_pnl
-        ),
+        "total_pnl": total_realized_pnl + total_unrealized_pnl,
     }
 
     return pd.DataFrame(rows), summary
@@ -286,85 +291,46 @@ def calculate_portfolio(trades_df, prices):
 
 init_db()
 
-prices = load_prices()
+live_prices = load_live_prices()
+manual_prices, manual_prices_df = load_manual_prices()
 
-if not prices:
-    st.warning(
-        "Canlı fiyatlar geçici olarak alınamadı."
-    )
+prices = live_prices.copy()
+prices.update(manual_prices)
+
+if not live_prices:
+    st.warning("Canlı fiyatlar geçici olarak alınamadı. Manuel fiyatlar varsa onlar kullanılacak.")
 
 trades_df = load_trades()
-
 initial_capital = get_initial_capital()
 
-portfolio_df, summary = calculate_portfolio(
-    trades_df,
-    prices
-)
+portfolio_df, summary = calculate_portfolio(trades_df, prices)
 
-cash_balance = (
-    initial_capital
-    - summary["used_try"]
-    + summary["cash_from_sales"]
-)
+cash_balance = initial_capital - summary["used_try"] + summary["cash_from_sales"]
+total_assets = cash_balance + summary["current_value"]
+total_profit = total_assets - initial_capital
 
-total_assets = (
-    cash_balance +
-    summary["current_value"]
-)
-
-total_profit = (
-    total_assets -
-    initial_capital
-)
 
 st.subheader("💰 Genel Durum")
 
 c1, c2, c3, c4 = st.columns(4)
 
-c1.metric(
-    "Başlangıç Sermayesi",
-    format_try(initial_capital)
-)
-
-c2.metric(
-    "TRY Kasa",
-    format_try(cash_balance)
-)
-
-c3.metric(
-    "Açık Pozisyon Değeri",
-    format_try(summary["current_value"])
-)
-
-c4.metric(
-    "Toplam Varlık",
-    format_try(total_assets)
-)
+c1.metric("Başlangıç Sermayesi", format_money(initial_capital))
+c2.metric("TRY Kasa", format_money(cash_balance))
+c3.metric("Açık Pozisyon Değeri", format_money(summary["current_value"]))
+c4.metric("Toplam Varlık", format_money(total_assets))
 
 c5, c6, c7 = st.columns(3)
 
-c5.metric(
-    "Gerçekleşen Kar/Zarar",
-    format_try(summary["realized_pnl"])
-)
-
-c6.metric(
-    "Açık Kar/Zarar",
-    format_try(summary["unrealized_pnl"])
-)
-
-c7.metric(
-    "Toplam Kar/Zarar",
-    format_try(total_profit)
-)
+c5.metric("Gerçekleşen Kar/Zarar", format_money(summary["realized_pnl"]))
+c6.metric("Açık Kar/Zarar", format_money(summary["unrealized_pnl"]))
+c7.metric("Toplam Kar/Zarar", format_money(total_profit))
 
 st.divider()
+
 
 st.subheader("⚙️ Başlangıç Sermayesi")
 
 with st.form("capital_form"):
-
     new_capital = st.number_input(
         "Başlangıç TRY sermayesi",
         min_value=0.0,
@@ -372,44 +338,72 @@ with st.form("capital_form"):
         step=100.0
     )
 
-    save_capital = st.form_submit_button(
-        "Sermayeyi Kaydet"
-    )
+    save_capital = st.form_submit_button("Sermayeyi Kaydet")
 
     if save_capital:
         set_initial_capital(new_capital)
-
-        st.success(
-            "Başlangıç sermayesi kaydedildi."
-        )
-
+        st.success("Başlangıç sermayesi kaydedildi.")
         st.rerun()
 
+
 st.divider()
+
+
+st.subheader("🟡 Manuel Anlık Fiyat Ekle")
+
+st.caption("FOGO gibi CoinGecko’da çıkmayan coinler için buraya manuel fiyat gir.")
+
+with st.form("manual_price_form"):
+    p1, p2 = st.columns(2)
+
+    with p1:
+        manual_symbol = st.text_input("Coin sembolü", placeholder="FOGOTRY")
+
+    with p2:
+        manual_price = st.number_input(
+            "Anlık fiyat",
+            min_value=0.0,
+            step=0.000001,
+            format="%.8f"
+        )
+
+    save_price = st.form_submit_button("Manuel Fiyatı Kaydet")
+
+    if save_price:
+        if not manual_symbol:
+            st.error("Coin sembolü boş olamaz.")
+        elif manual_price <= 0:
+            st.error("Fiyat sıfırdan büyük olmalı.")
+        else:
+            save_manual_price(manual_symbol, manual_price)
+            st.success("Manuel fiyat kaydedildi.")
+            st.cache_data.clear()
+            st.rerun()
+
+if not manual_prices_df.empty:
+    st.dataframe(manual_prices_df, use_container_width=True)
+
+
+st.divider()
+
 
 st.subheader("📥 İşlem Ekle")
 
 with st.form("trade_form"):
-
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        symbol = st.text_input(
-            "Coin sembolü",
-            placeholder="BTCTRY"
-        )
+        symbol = st.text_input("Coin sembolü", placeholder="BTCTRY, SOLTRY, FOGOTRY")
 
     with col2:
-        trade_type = st.selectbox(
-            "İşlem tipi",
-            ["ALIŞ", "SATIŞ"]
-        )
+        trade_type = st.selectbox("İşlem tipi", ["ALIŞ", "SATIŞ"])
 
     with col3:
         price = st.number_input(
             "Fiyat",
             min_value=0.0,
-            step=0.01
+            step=0.000001,
+            format="%.8f"
         )
 
     with col4:
@@ -420,51 +414,37 @@ with st.form("trade_form"):
             format="%.8f"
         )
 
-    note = st.text_input(
-        "Not",
-        placeholder="Örn: İlk alış"
-    )
+    note = st.text_input("Not", placeholder="Örn: ilk alış, satış 1, stop")
 
-    submitted = st.form_submit_button(
-        "İşlemi Kaydet"
-    )
+    submitted = st.form_submit_button("İşlemi Kaydet")
 
     if submitted:
-
         if not symbol:
-            st.error("Coin boş olamaz.")
-
+            st.error("Coin sembolü boş olamaz.")
         elif price <= 0 or quantity <= 0:
-            st.error("Fiyat ve miktar gir.")
-
+            st.error("Fiyat ve miktar sıfırdan büyük olmalı.")
         else:
-            add_trade(
-                symbol,
-                trade_type,
-                price,
-                quantity,
-                note
-            )
-
+            add_trade(symbol, trade_type, price, quantity, note)
             st.success("İşlem kaydedildi.")
-
             st.rerun()
 
+
 st.divider()
+
 
 st.subheader("📊 Açık Pozisyonlar ve Kar/Zarar")
 
 if portfolio_df.empty:
-
-    st.info("Henüz işlem yok.")
-
+    st.info("Henüz işlem girmedin.")
 else:
-
     display_portfolio = portfolio_df.copy()
 
-    money_columns = [
+    price_columns = [
         "Ortalama Maliyet",
         "Anlık Fiyat",
+    ]
+
+    money_columns = [
         "Alış Toplamı",
         "Satış Toplamı",
         "Kalan Değer",
@@ -473,41 +453,28 @@ else:
         "Toplam Kar/Zarar",
     ]
 
-    for col in money_columns:
-
-        display_portfolio[col] = (
-            display_portfolio[col]
-            .apply(
-                lambda x:
-                format_try(x)
-                if pd.notna(x)
-                else "Fiyat Yok"
-            )
+    for col in price_columns:
+        display_portfolio[col] = display_portfolio[col].apply(
+            lambda x: format_price(x) if pd.notna(x) else "Fiyat Yok"
         )
 
-    st.dataframe(
-        display_portfolio,
-        use_container_width=True
-    )
+    for col in money_columns:
+        display_portfolio[col] = display_portfolio[col].apply(format_money)
+
+    st.dataframe(display_portfolio, use_container_width=True)
+
 
 st.divider()
+
 
 st.subheader("🧾 İşlem Geçmişi")
 
 if trades_df.empty:
-
     st.info("İşlem geçmişi boş.")
-
 else:
+    st.dataframe(trades_df, use_container_width=True)
 
-    st.dataframe(
-        trades_df,
-        use_container_width=True
-    )
-
-    st.warning(
-        "Silme işlemi geri alınamaz."
-    )
+    st.warning("Silme işlemi geri alınamaz.")
 
     delete_id = st.number_input(
         "Silinecek işlem ID",
@@ -516,14 +483,9 @@ else:
     )
 
     if st.button("Seçili İşlemi Sil"):
-
         if delete_id > 0:
-
             delete_trade(delete_id)
-
             st.success("İşlem silindi.")
-
             st.rerun()
-
         else:
-            st.error("Geçerli ID gir.")
+            st.error("Geçerli bir işlem ID gir.")
