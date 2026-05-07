@@ -9,7 +9,7 @@ class TelegramNotifier:
 
     def send_message(self, message: str) -> bool:
         if not self.bot_token or not self.chat_id:
-            print("Telegram bilgileri eksik: TELEGRAM_BOT_TOKEN veya TELEGRAM_CHAT_ID yok.")
+            print("Telegram bilgileri eksik.")
             return False
 
         payload = {
@@ -23,10 +23,10 @@ class TelegramNotifier:
             response = requests.post(self.api_url, json=payload, timeout=20)
 
             if response.status_code != 200:
-                print(f"Telegram mesaj gönderme hatası: {response.status_code} - {response.text}")
+                print(f"Telegram hatası: {response.status_code} - {response.text}")
                 return False
 
-            print("Telegram mesajı başarıyla gönderildi.")
+            print("Telegram mesajı gönderildi.")
             return True
 
         except requests.RequestException as e:
