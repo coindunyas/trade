@@ -85,6 +85,8 @@ def load_data():
     try:
         client = BinanceTRClient()
         tickers = client.get_tickers()
+        st.write("ÇEKİLEN COIN SAYISI:", len(tickers))
+        st.write(tickers[:3])
         results = []
 
         for ticker in tickers:
