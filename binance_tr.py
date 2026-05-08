@@ -85,7 +85,8 @@ class BinanceTRClient:
                 "marketCap": 0,
                 "source": "binance_global_usdt_try",
             })
-
+print("FOGO TEST:", [x for x in tickers if "FOGO" in x.get("symbol", "")])
+print("TOPLAM BINANCE TICKER:", len(tickers))
         if not tickers:
             raise Exception("Binance Global ticker boş geldi.")
 
