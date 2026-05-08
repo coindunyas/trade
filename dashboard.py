@@ -81,12 +81,15 @@ div[role="listbox"] div {
 
 
 @st.cache_data(ttl=300)
+@st.cache_data(ttl=300)
 def load_data():
     try:
         client = BinanceTRClient()
         tickers = client.get_tickers()
+
         st.write("ÇEKİLEN COIN SAYISI:", len(tickers))
-        st.write(tickers[:3])
+        st.write("İLK 3 VERİ:", tickers[:3])
+
         results = []
 
         for ticker in tickers:
@@ -96,7 +99,8 @@ def load_data():
 
         return results
 
-    except Exception:
+    except Exception as e:
+        st.error(f"VERİ ÇEKME HATASI: {e}")
         return []
 
 
