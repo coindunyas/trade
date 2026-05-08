@@ -8,7 +8,6 @@ class BinanceTRClient:
         self.coingecko_url = "https://api.coingecko.com/api/v3"
 
     def get_usdt_try_rate(self):
-        # 1. Binance USDTTRY dene
         try:
             url = f"{self.binance_url}/ticker/price?symbol=USDTTRY"
             response = requests.get(url, timeout=15)
@@ -19,7 +18,6 @@ class BinanceTRClient:
         except Exception:
             pass
 
-        # 2. Frankfurter USDTRY dene
         try:
             url = "https://api.frankfurter.app/latest?from=USD&to=TRY"
             response = requests.get(url, timeout=15)
@@ -30,7 +28,6 @@ class BinanceTRClient:
         except Exception:
             pass
 
-        # 3. Güvenli fallback
         return 40.0
 
     def get_tickers(self):
@@ -50,7 +47,6 @@ class BinanceTRClient:
             raise Exception(f"Binance API hatası: {response.status_code} - {response.text}")
 
         data = response.json()
-
         tickers = []
 
         for item in data:
@@ -61,7 +57,6 @@ class BinanceTRClient:
 
             base_symbol = symbol.replace("USDT", "")
 
-            # Gereksiz stable coinleri ele
             if base_symbol in ["USDT", "USDC", "FDUSD", "TUSD", "DAI", "BUSD"]:
                 continue
 
@@ -85,8 +80,7 @@ class BinanceTRClient:
                 "marketCap": 0,
                 "source": "binance_global_usdt_try",
             })
-print("FOGO TEST:", [x for x in tickers if "FOGO" in x.get("symbol", "")])
-print("TOPLAM BINANCE TICKER:", len(tickers))
+
         if not tickers:
             raise Exception("Binance Global ticker boş geldi.")
 
@@ -111,8 +105,6 @@ print("TOPLAM BINANCE TICKER:", len(tickers))
             if response.status_code == 200:
                 all_data.extend(response.json())
                 time.sleep(1)
-            else:
-                print(f"CoinGecko API hatası: {response.status_code}")
 
         if not all_data:
             raise Exception("CoinGecko verisi alınamadı.")
