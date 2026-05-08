@@ -22,9 +22,22 @@ body {
 .wrap { padding:28px; }
 h1 { font-size:40px; margin-bottom:8px; }
 .sub { color:#cbd5e1; margin-bottom:24px; }
+.status {
+  background:#064e3b;
+  padding:14px;
+  border-radius:12px;
+  margin-bottom:16px;
+}
+.warn {
+  background:#7f1d1d;
+  padding:14px;
+  border-radius:12px;
+  margin-bottom:16px;
+  display:none;
+}
 .top {
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:repeat(5,1fr);
   gap:16px;
   margin-bottom:28px;
 }
@@ -35,7 +48,7 @@ h1 { font-size:40px; margin-bottom:8px; }
   padding:20px;
 }
 .metric-title { color:#cbd5e1; font-weight:bold; }
-.metric-value { font-size:34px; font-weight:900; margin-top:10px; }
+.metric-value { font-size:32px; font-weight:900; margin-top:10px; }
 .controls {
   display:grid;
   grid-template-columns:1fr 1fr 2fr;
@@ -86,9 +99,24 @@ button {
   justify-content:space-between;
   border-bottom:1px solid #334155;
   padding:8px 0;
+  gap:10px;
 }
+.row span:first-child { color:#cbd5e1; }
 .green { color:#22c55e; font-weight:900; }
 .red { color:#ef4444; font-weight:900; }
+.yellow { color:#facc15; font-weight:900; }
+.blue { color:#38bdf8; font-weight:900; }
+.purple { color:#c084fc; font-weight:900; }
+.reason {
+  margin-top:14px;
+  background:#020617;
+  border:1px solid #334155;
+  border-radius:12px;
+  padding:12px;
+  color:#e5e7eb;
+  font-size:14px;
+  line-height:1.45;
+}
 table {
   width:100%;
   border-collapse:collapse;
@@ -103,25 +131,21 @@ th, td {
   font-size:14px;
 }
 th { background:#f8fafc; }
-.status {
-  background:#064e3b;
-  padding:14px;
-  border-radius:12px;
-  margin-bottom:16px;
+.badge {
+  padding:5px 9px;
+  border-radius:999px;
+  font-weight:900;
+  font-size:12px;
 }
-.warn {
-  background:#7f1d1d;
-  padding:14px;
-  border-radius:12px;
-  margin-bottom:16px;
-  display:none;
-}
+.badge-green { background:#dcfce7; color:#166534; }
+.badge-yellow { background:#fef9c3; color:#854d0e; }
+.badge-red { background:#fee2e2; color:#991b1b; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>🚀 AI Crypto Signal Dashboard</h1>
-  <div class="sub">Binance TRY pariteleri tarayıcı üzerinden canlı çekilir. Yatırım tavsiyesi değildir.</div>
+  <div class="sub">Binance TRY pariteleri tarayıcı üzerinden canlı çekilir. Gelişmiş skor motoru aktiftir. Yatırım tavsiyesi değildir.</div>
 
   <div class="status" id="status">● Canlı veri hazırlanıyor...</div>
   <div class="warn" id="errorBox"></div>
@@ -131,6 +155,7 @@ th { background:#f8fafc; }
     <div class="card"><div class="metric-title">AKTİF SİNYAL</div><div class="metric-value" id="activeSignals">-</div></div>
     <div class="card"><div class="metric-title">EN YÜKSEK SKOR</div><div class="metric-value" id="bestScore">-</div></div>
     <div class="card"><div class="metric-title">ORTALAMA SKOR</div><div class="metric-value" id="avgScore">-</div></div>
+    <div class="card"><div class="metric-title">FAKE PUMP RİSKİ</div><div class="metric-value" id="pumpRisk">-</div></div>
   </div>
 
   <button onclick="loadData()">🔄 Verileri Yenile</button>
@@ -170,6 +195,7 @@ th { background:#f8fafc; }
       <tr>
         <th>Sembol</th>
         <th>Skor</th>
+        <th>AI Güven</th>
         <th>Risk</th>
         <th>Güncel Fiyat</th>
         <th>Alış Bölgesi</th>
@@ -178,7 +204,11 @@ th { background:#f8fafc; }
         <th>Stop</th>
         <th>Değişim %</th>
         <th>Hacim</th>
-        <th>Trend</th>
+        <th>Dip Skoru</th>
+        <th>Hacim Gücü</th>
+        <th>Trend Gücü</th>
+        <th>Fake Pump</th>
+        <th>Neden?</th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -203,6 +233,90 @@ function fmtVolume(v) {
   return v.toLocaleString("tr-TR", {maximumFractionDigits:0}) + " TL";
 }
 
+function calcDipScore(last, low, high) {
+  last = Number(last);
+  low = Number(low);
+  high = Number(high);
+
+  if (!low || !high || high <= low) return 0;
+
+  const position = (last - low) / (high - low);
+
+  if (position <= 0.15) return 10;
+  if (position <= 0.30) return 8;
+  if (position <= 0.50) return 6;
+  if (position <= 0.70) return 4;
+  return 2;
+}
+
+function calcVolumePower(volume) {
+  volume = Number(volume);
+
+  if (volume >= 1_000_000_000) return 10;
+  if (volume >= 500_000_000) return 9;
+  if (volume >= 200_000_000) return 8;
+  if (volume >= 100_000_000) return 7;
+  if (volume >= 50_000_000) return 6;
+  if (volume >= 20_000_000) return 5;
+  if (volume >= 10_000_000) return 4;
+  return 2;
+}
+
+function calcTrendPower(change, last, low, high) {
+  change = Number(change);
+  last = Number(last);
+  low = Number(low);
+  high = Number(high);
+
+  let score = 0;
+
+  if (change > 0) score += 3;
+  if (change > 3) score += 2;
+  if (change > 7) score += 1;
+
+  if (high > low) {
+    const recovery = (last - low) / (high - low);
+    if (recovery >= 0.20 && recovery <= 0.65) score += 3;
+    else if (recovery > 0.65) score += 1;
+  }
+
+  return Math.min(score, 10);
+}
+
+function fakePumpRisk(change, last, low, high, volume) {
+  change = Number(change);
+  last = Number(last);
+  low = Number(low);
+  high = Number(high);
+  volume = Number(volume);
+
+  let risk = 0;
+
+  if (change >= 15) risk += 4;
+  if (change >= 25) risk += 3;
+
+  if (high > low) {
+    const position = (last - low) / (high - low);
+    if (position >= 0.85) risk += 3;
+    if (position >= 0.95) risk += 2;
+  }
+
+  if (volume < 20_000_000 && change > 10) risk += 2;
+
+  if (risk >= 7) return "Yüksek";
+  if (risk >= 4) return "Orta";
+  return "Düşük";
+}
+
+function rsiSimulation(change, last, low, high) {
+  const dip = calcDipScore(last, low, high);
+
+  if (change <= -10 && dip >= 8) return "Aşırı Satım";
+  if (change <= -5 && dip >= 6) return "Dip Bölgesi";
+  if (change > 10) return "Şişmiş";
+  return "Normal";
+}
+
 function scoreCoin(c) {
   const change = Number(c.priceChangePercent);
   const volume = Number(c.quoteVolume);
@@ -210,33 +324,65 @@ function scoreCoin(c) {
   const low = Number(c.lowPrice);
   const high = Number(c.highPrice);
 
+  const dip = calcDipScore(last, low, high);
+  const volumePower = calcVolumePower(volume);
+  const trendPower = calcTrendPower(change, last, low, high);
+  const pump = fakePumpRisk(change, last, low, high, volume);
+
   let score = 0;
 
   if (change <= -7) score += 3;
   else if (change <= -4) score += 2;
+  else if (change > 0 && change <= 8) score += 1;
 
-  if (volume >= 20000000) score += 3;
-  else if (volume >= 10000000) score += 2;
-  else if (volume >= 3000000) score += 1;
+  if (volumePower >= 8) score += 3;
+  else if (volumePower >= 6) score += 2;
+  else if (volumePower >= 4) score += 1;
 
-  if (low > 0) {
-    const nearLow = (last - low) / low;
-    if (nearLow <= 0.03) score += 2;
-    else if (nearLow <= 0.07) score += 1;
-  }
+  if (dip >= 8) score += 2;
+  else if (dip >= 6) score += 1;
 
-  if (high > low && last > low && change < 0) {
-    const recovery = (last - low) / (high - low);
-    if (recovery >= 0.15 && recovery <= 0.55) score += 1;
-  }
+  if (trendPower >= 7) score += 1;
 
-  return Math.min(score, 8);
+  if (pump === "Yüksek") score -= 3;
+  if (pump === "Orta") score -= 1;
+
+  return Math.max(0, Math.min(score, 8));
 }
 
-function risk(score) {
+function aiConfidence(score, volumePower, dipScore, trendPower, pumpRisk) {
+  let confidence = 0;
+
+  confidence += score / 8 * 45;
+  confidence += volumePower / 10 * 25;
+  confidence += dipScore / 10 * 15;
+  confidence += trendPower / 10 * 15;
+
+  if (pumpRisk === "Orta") confidence -= 10;
+  if (pumpRisk === "Yüksek") confidence -= 25;
+
+  return Math.max(0, Math.min(100, Math.round(confidence)));
+}
+
+function risk(score, pumpRisk) {
+  if (pumpRisk === "Yüksek") return "Yüksek";
   if (score >= 7) return "Düşük-Orta";
   if (score >= 5) return "Orta";
   return "Yüksek";
+}
+
+function reasonText(c) {
+  const parts = [];
+
+  if (c.dipScore >= 8) parts.push("dip bölgesine yakın");
+  if (c.volumePower >= 8) parts.push("hacim güçlü");
+  if (c.trendPower >= 7) parts.push("trend toparlanıyor");
+  if (c.rsiState === "Aşırı Satım") parts.push("aşırı satım sinyali var");
+  if (c.fakePump === "Yüksek") parts.push("fake pump riski yüksek, dikkat");
+
+  if (!parts.length) return "Net güçlü sinyal yok, takip edilmeli.";
+
+  return parts.join(" + ");
 }
 
 function trend(change) {
@@ -248,22 +394,43 @@ function trend(change) {
 
 function enrich(c) {
   const last = Number(c.lastPrice);
-  const score = scoreCoin(c);
+  const low = Number(c.lowPrice);
+  const high = Number(c.highPrice);
+  const change = Number(c.priceChangePercent);
+  const volume = Number(c.quoteVolume);
 
-  return {
+  const dipScore = calcDipScore(last, low, high);
+  const volumePower = calcVolumePower(volume);
+  const trendPower = calcTrendPower(change, last, low, high);
+  const fakePump = fakePumpRisk(change, last, low, high, volume);
+  const score = scoreCoin(c);
+  const confidence = aiConfidence(score, volumePower, dipScore, trendPower, fakePump);
+  const rsiState = rsiSimulation(change, last, low, high);
+
+  const item = {
     symbol: c.symbol,
     score,
-    risk: risk(score),
+    aiConfidence: confidence,
+    risk: risk(score, fakePump),
     price: last,
     entryLow: last * 0.98,
     entryHigh: last * 0.99,
     sell1: last * 1.10,
     sell2: last * 1.18,
     stop: last * 0.95,
-    change: Number(c.priceChangePercent),
-    volume: Number(c.quoteVolume),
-    trend: trend(c.priceChangePercent)
+    change,
+    volume,
+    dipScore,
+    volumePower,
+    trendPower,
+    fakePump,
+    rsiState,
+    trend: trend(change)
   };
+
+  item.reason = reasonText(item);
+
+  return item;
 }
 
 async function loadData() {
@@ -286,7 +453,7 @@ async function loadData() {
       .filter(x => x.symbol && x.symbol.endsWith("TRY"))
       .filter(x => Number(x.lastPrice) > 0)
       .map(enrich)
-      .sort((a,b) => b.score - a.score || b.volume - a.volume);
+      .sort((a,b) => b.score - a.score || b.aiConfidence - a.aiConfidence || b.volume - a.volume);
 
     status.innerText = "● Canlı Veri | Son güncelleme: " + new Date().toLocaleTimeString("tr-TR");
 
@@ -299,6 +466,18 @@ async function loadData() {
   }
 }
 
+function pumpBadge(v) {
+  if (v === "Düşük") return `<span class="badge badge-green">Düşük</span>`;
+  if (v === "Orta") return `<span class="badge badge-yellow">Orta</span>`;
+  return `<span class="badge badge-red">Yüksek</span>`;
+}
+
+function riskBadge(v) {
+  if (v === "Düşük-Orta") return `<span class="badge badge-green">Düşük-Orta</span>`;
+  if (v === "Orta") return `<span class="badge badge-yellow">Orta</span>`;
+  return `<span class="badge badge-red">Yüksek</span>`;
+}
+
 function renderCards(list) {
   const topCards = document.getElementById("topCards");
   const top3 = list.slice(0,3);
@@ -307,14 +486,16 @@ function renderCards(list) {
     <div class="coin-card">
       <div class="coin-title">#${i+1} ${c.symbol}</div>
       <div class="score">${c.score}/8</div>
-      <div class="row"><span>Risk</span><b>${c.risk}</b></div>
+      <div class="row"><span>AI Güven</span><b class="purple">%${c.aiConfidence}</b></div>
+      <div class="row"><span>Risk</span><b>${riskBadge(c.risk)}</b></div>
       <div class="row"><span>Güncel</span><b>${fmtPrice(c.price)}</b></div>
       <div class="row"><span>Alış Bölgesi</span><b>${fmtPrice(c.entryLow)} - ${fmtPrice(c.entryHigh)}</b></div>
       <div class="row"><span>Satış 1</span><b class="green">${fmtPrice(c.sell1)}</b></div>
       <div class="row"><span>Satış 2</span><b class="green">${fmtPrice(c.sell2)}</b></div>
       <div class="row"><span>Stop</span><b class="red">${fmtPrice(c.stop)}</b></div>
-      <div class="row"><span>Değişim</span><b>${c.change.toFixed(2)}%</b></div>
-      <div class="row"><span>Hacim</span><b>${fmtVolume(c.volume)}</b></div>
+      <div class="row"><span>RSI Simülasyon</span><b class="blue">${c.rsiState}</b></div>
+      <div class="row"><span>Fake Pump</span><b>${pumpBadge(c.fakePump)}</b></div>
+      <div class="reason"><b>Neden?</b><br>${c.reason}</div>
     </div>
   `).join("");
 }
@@ -334,10 +515,13 @@ function render() {
     list = list.filter(c => c.symbol.includes(search));
   }
 
+  const highPump = coins.filter(c => c.fakePump === "Yüksek").length;
+
   document.getElementById("totalCoins").innerText = coins.length;
   document.getElementById("activeSignals").innerText = coins.filter(c => c.score >= 5).length;
   document.getElementById("bestScore").innerText = coins.length ? Math.max(...coins.map(c => c.score)) + "/8" : "-";
   document.getElementById("avgScore").innerText = coins.length ? (coins.reduce((a,b)=>a+b.score,0)/coins.length).toFixed(1) : "-";
+  document.getElementById("pumpRisk").innerText = highPump;
 
   renderCards(list);
 
@@ -345,7 +529,8 @@ function render() {
     <tr>
       <td><b>${c.symbol}</b></td>
       <td>${c.score}</td>
-      <td>${c.risk}</td>
+      <td>%${c.aiConfidence}</td>
+      <td>${riskBadge(c.risk)}</td>
       <td>${fmtPrice(c.price)}</td>
       <td>${fmtPrice(c.entryLow)} - ${fmtPrice(c.entryHigh)}</td>
       <td>${fmtPrice(c.sell1)}</td>
@@ -353,7 +538,11 @@ function render() {
       <td>${fmtPrice(c.stop)}</td>
       <td>${c.change.toFixed(2)}%</td>
       <td>${fmtVolume(c.volume)}</td>
-      <td>${c.trend}</td>
+      <td>${c.dipScore}/10</td>
+      <td>${c.volumePower}/10</td>
+      <td>${c.trendPower}/10</td>
+      <td>${pumpBadge(c.fakePump)}</td>
+      <td>${c.reason}</td>
     </tr>
   `).join("");
 }
@@ -365,4 +554,4 @@ setInterval(loadData, 30000);
 </html>
 """
 
-components.html(html_code, height=1250, scrolling=True)
+components.html(html_code, height=1400, scrolling=True)
